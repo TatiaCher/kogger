@@ -23,19 +23,10 @@ private:
     QCustomPlot *m_customPlot;
     QTime m_time;
 
-    double m_yaw = 0;
-    double m_pitch = 0;
-    double m_roll = 0;
-
-    bool isYaw = false;
-    bool isPitch = false;
-    bool isRoll = false;
-
 signals:
 
 public:
     void realtimeDataSlot(double &value);
-    void YPRDataSlot(double &m_yaw, double &m_pitch, double &m_roll);
 };
 
 #endif // REALTIMEPLOT_H

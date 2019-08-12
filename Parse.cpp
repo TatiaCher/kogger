@@ -69,7 +69,7 @@ void Parse::ParseChartDataMode()
     for (int i = payloadPos; i < payloadArray.size(); i++)
     {
        data = static_cast<double>(static_cast<uint8T>(payloadArray[i]) * itemUnit)/1000.0;
-       emit setData(data);
+       emit gotDistanceData(data);
     }
 }
 
@@ -93,7 +93,7 @@ void Parse::ParseYPR()
     double roll = ROLL * 0.01;
 
     qDebug() << yaw;
-    emit setYPR(yaw, pitch, roll);
+    emit gotYPRdata(yaw, pitch, roll);
 }
 
 void Parse::ParseYPRattach()
@@ -108,6 +108,8 @@ void Parse::ParseTemp()
 
     double tempIMU = TEMPIMU * 0.01;
     double tempCPU = TEMPCPU * 0.01;
+
+    emit gotTempData(tempIMU, tempCPU);
 }
 
 void Parse::ParseArray()

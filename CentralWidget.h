@@ -25,7 +25,11 @@ private:
     void SetPorts();
     void SendMSG(uint8T id, uint8T mode);
 
-    void getYPR();
+    void startTimer();
+    void setYPR(double &yaw, double &pitch, double &roll);
+    void setTemp(double &tempIMU, double &tempCPU);
+
+    void setdata();
 
     QByteArray GetArrayMSG(uint8T &id, uint8T &mode);
 
@@ -51,6 +55,15 @@ private:
     realTimePlot *m_realTimePlot;
     Parse *m_parse;
     SendData *m_sendData;
+
+    QLabel *m_lbYaw;
+    QLineEdit *m_teYaw;
+    QLabel *m_lbPitch;
+    QLineEdit *m_tePitch;
+    QLabel *m_lbRoll;
+    QLineEdit *m_teRoll;
+    QLabel *m_lbTemp;
+    QLineEdit *m_teTemp;
 
     QToolBox *m_toolBox;
 
@@ -92,9 +105,6 @@ private:
     void createYPRWidget();
     QLabel *m_lbAttachYPR;
     QSpinBox * m_sbAttachYPR;
-    QCheckBox *m_rbYaw;
-    QCheckBox *m_rbPitch;
-    QCheckBox *m_rbRoll;
     QPushButton *m_pbSetYPR;
 
     QWidget *AGCWidget;

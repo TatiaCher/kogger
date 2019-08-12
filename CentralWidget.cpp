@@ -22,7 +22,7 @@ CentralWidget::CentralWidget(QWidget *parent) :
     CreateConnections();
     SetPorts();
 
-    m_yPRTimer->setInterval(500);
+    m_yPRTimer->setInterval(1000);
 }
 
 void CentralWidget::CreateConnections()
@@ -31,8 +31,7 @@ void CentralWidget::CreateConnections()
      connect(m_disconnectB, &QPushButton::clicked,  this, &CentralWidget::onDisconnect);
      connect(m_serialPort, &QSerialPort::readyRead, this, &CentralWidget::parseData);
 
-     connect(m_parse, &Parse::setData, m_realTimePlot, &realTimePlot::realtimeDataSlot);
-     connect(m_parse, &Parse::setYPR, m_realTimePlot, &realTimePlot::YPRDataSlot);
+     connect(m_parse, &Parse::gotDistanceData, m_realTimePlot, &realTimePlot::realtimeDataSlot);
 
      connect(m_pbUpdateSettChar, &QPushButton::clicked, [=](){SendMSG(CMD_CHART, Action);}); //this, &CentralWidget::GetChartActArray);
      connect(m_pbSetArr, &QPushButton::clicked, [=](){SendMSG(CMD_ARRAY , Getting);}); //doesn't work with "Action"  //this, &CentralWidget::GetArrayActArray);
@@ -40,30 +39,37 @@ void CentralWidget::CreateConnections()
      connect(m_pbSetAGC, &QPushButton::clicked, [=](){SendMSG(CMD_AGC, Setting);}); //this, &CentralWidget::GetAGCSettArray);
      connect(m_pbSetTransc, &QPushButton::clicked, [=](){SendMSG(CMD_TRANSC, Setting);}); //this, &CentralWidget::GetTRANSCSettArray);
      connect(m_pbSetSndSpd, &QPushButton::clicked, [=](){SendMSG(CMD_SND_SPD, Setting);}); //this, &CentralWidget::GetSPDSettArray);
+     connect(m_parse, &Parse::gotYPRdata, this, &CentralWidget::setYPR);
+     connect(m_parse, &Parse::gotTempData, this, &CentralWidget::setTemp);
 
-     connect(m_rbYaw, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changeYaw);
-     connect(m_rbPitch, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changePitch);
-     connect(m_rbRoll, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changeRoll);
-
-     connect(m_rbYaw, &QCheckBox::clicked, this, &CentralWidget::getYPR);
-     connect(m_rbPitch, &QCheckBox::clicked, this, &CentralWidget::getYPR);
-     connect(m_rbRoll, &QCheckBox::clicked, this, &CentralWidget::getYPR);
-
-     connect(m_yPRTimer, &QTimer::timeout, [=](){SendMSG(CMD_YPR, Getting);});
+     connect(m_yPRTimer, &QTimer::timeout, this, &CentralWidget::setdata); //[=](){SendMSG(CMD_YPR, Getting);});
 }
 
-void CentralWidget::getYPR()
+void CentralWidget::setdata()
+{
+    SendMSG(CMD_TEMP, Getting);
+    SendMSG(CMD_YPR, Getting);
+
+}
+
+void CentralWidget::startTimer()
 {
     if (!m_yPRTimer->isActive())
     {
-        if (m_rbYaw->isChecked() || m_rbRoll->isChecked() || m_rbPitch->isChecked())
-        {
-            m_yPRTimer->start();
-        }
-        else {
-            m_yPRTimer->stop();
-        }
+        m_yPRTimer->start();
     }
+}
+
+void CentralWidget::setYPR(double &yaw, double &pitch, double &roll)
+{
+    m_teYaw->setText(QString("%1").arg(yaw));
+    m_tePitch->setText(QString("%1").arg(pitch));
+    m_teRoll->setText(QString("%1").arg(roll));
+}
+
+void CentralWidget::setTemp(double &tempIMU, double &tempCPU)
+{
+    m_teRoll->setText(QString("%1").arg(tempIMU));
 }
 
 void CentralWidget::createDistWidget()
@@ -185,22 +191,12 @@ void CentralWidget::createYPRWidget()
     m_sbAttachYPR = new QSpinBox(this);
     m_sbAttachYPR->setRange(0, 1);
 
-    m_rbYaw = new QCheckBox("Yaw plot", this);
-    //m_rbYaw->setChecked(true);
-    m_rbPitch = new QCheckBox("Pitch plot", this);
-    //m_rbPitch->setChecked(true);
-    m_rbRoll = new QCheckBox("Roll plot", this);
-    //m_rbRoll->setChecked(true);
-
     m_pbSetYPR = new QPushButton(tr("Set"), this);
     m_pbSetYPR->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
 
     YPRWidget = new QWidget;
 
     QVBoxLayout *vLayoutCh = new QVBoxLayout;
-    vLayoutCh->addWidget(m_rbYaw);
-    vLayoutCh->addWidget(m_rbPitch);
-    vLayoutCh->addWidget(m_rbRoll);
     vLayoutCh->addWidget(m_lbAttachYPR);
     vLayoutCh->addWidget(m_sbAttachYPR);
     vLayoutCh->addWidget(m_pbSetYPR);
@@ -317,6 +313,19 @@ void CentralWidget::CreateInterface()
 
     m_textLable = new QLabel(this);
 
+    m_lbYaw = new QLabel("Yaw", this);
+    m_teYaw = new QLineEdit(this);
+    m_teYaw->setReadOnly(true);
+    m_lbPitch = new QLabel("Pitch", this);
+    m_tePitch = new QLineEdit(this);
+    m_tePitch->setReadOnly(true);
+    m_lbRoll = new QLabel("Roll", this);
+    m_teRoll = new QLineEdit(this);
+    m_teRoll->setReadOnly(true);
+    m_lbTemp = new QLabel("Temp", this);
+    m_teTemp = new QLineEdit(this);
+    m_teTemp->setReadOnly(true);
+
     createDistWidget();
 
     m_toolBox = new QToolBox(this);
@@ -340,12 +349,26 @@ void CentralWidget::CreateLayouts()
     vLayout->addLayout(hLayout2);
     vLayout->addWidget(m_textLable);
 
-    QHBoxLayout *hLayout3 = new QHBoxLayout;
-    hLayout3->addLayout(vLayout);
-    hLayout3->addWidget(m_realTimePlot);
+    QHBoxLayout * hLayout3 = new QHBoxLayout;
+    hLayout3->addWidget(m_lbYaw);
+    hLayout3->addWidget(m_teYaw);
+    hLayout3->addWidget(m_lbPitch);
+    hLayout3->addWidget(m_tePitch);
+    hLayout3->addWidget(m_lbRoll);
+    hLayout3->addWidget(m_teRoll);
+    hLayout3->addWidget(m_lbTemp);
+    hLayout3->addWidget(m_teTemp);
+
+    QVBoxLayout *vLayout2 = new QVBoxLayout;
+    vLayout2->addLayout(hLayout3);
+    vLayout2->addWidget(m_realTimePlot);
+
+    QHBoxLayout *hLayout4 = new QHBoxLayout;
+    hLayout4->addLayout(vLayout);
+    hLayout4->addLayout(vLayout2);
 
     setContentsMargins(0, 0, 0, 0);
-    setLayout(hLayout3);
+    setLayout(hLayout4);
 }
 
 void CentralWidget::onDisconnect()
@@ -362,6 +385,7 @@ void CentralWidget::onConnect()
     if (m_serialPort->open(QIODevice::ReadWrite))
     {
         m_textLable->setText("Connected");
+        startTimer();
     }
     else {
         m_textLable->setText("Can't connect");

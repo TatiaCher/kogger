@@ -19,39 +19,6 @@ void realTimePlot::createLayout()
     setLayout(layout);
 }
 
-void realTimePlot::changeYaw()
-{
-    if (isYaw)
-    {
-        isYaw = false;
-    }
-    else {
-        isYaw = true;
-    }
-}
-
-void realTimePlot::changePitch()
-{
-    if (isPitch)
-    {
-        isPitch = false;
-    }
-    else {
-        isPitch = true;
-    }
-}
-
-void realTimePlot::changeRoll()
-{
-    if (isRoll)
-    {
-        isRoll = false;
-    }
-    else {
-        isRoll = true;
-    }
-}
-
 void realTimePlot::plotSettings()
 {
     m_customPlot->setMinimumSize(500, 400);
@@ -86,51 +53,11 @@ void realTimePlot::realtimeDataSlot(double &value)
     if (key - m_lastPointKey > 0.02)
     {
         m_customPlot->graph(0)->addData(key, value);
-        //m_customPlot->graph(0)->rescaleValueAxis();
-
-        m_customPlot->graph(1)->addData(key, m_yaw);
-        //m_customPlot->graph(1)->rescaleValueAxis();
-        m_customPlot->graph(2)->addData(key, m_pitch);
-
-        m_customPlot->graph(3)->addData(key, m_roll);
-
-        if (isYaw)
-        {
-            m_customPlot->graph(1)->setVisible(true);
-        }
-        else
-        {
-            m_customPlot->graph(1)->setVisible(false);
-        }
-
-        if (isPitch)
-        {
-            m_customPlot->graph(2)->setVisible(true);
-        }
-        else
-        {
-            m_customPlot->graph(2)->setVisible(false);
-        }
-
-        if (isRoll)
-        {
-            m_customPlot->graph(3)->setVisible(true);
-        }
-        else
-        {
-            m_customPlot->graph(3)->setVisible(false);
-        }
+        m_customPlot->graph(0)->rescaleValueAxis();
 
         m_lastPointKey = key;
     }
 
     m_customPlot->xAxis->setRange(key, 8, Qt::AlignRight);
     m_customPlot->replot();
-}
-
-void realTimePlot::YPRDataSlot(double &yaw, double &pitch, double &roll)
-{
-    this->m_yaw = yaw;
-    this->m_pitch = pitch;
-    this->m_roll = roll;
 }

@@ -80,8 +80,9 @@ private:
     uint8T CHECK2 = 0;
 
 signals:
-    void setData(double&);
-    void setYPR(double&, double&, double&);
+    void gotDistanceData(double&);
+    void gotYPRdata(double&, double&, double&);
+    void gotTempData(double&, double&);
 };
 
 #endif // PARSEARR_H
