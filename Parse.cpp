@@ -61,13 +61,15 @@ void Parse::ParseResp()
 
 void Parse::ParseChartDataMode()
 {
+    double data = 0;
     uint32_t strtPos = ReadU4();
     uint16_t itemOffset = ReadU2();
     uint16_t itemUnit = ReadU2();
 
     for (int i = payloadPos; i < payloadArray.size(); i++)
     {
-       emit setData(static_cast<double>(static_cast<uint8T>(payloadArray[i]) * itemUnit)/1000);
+       data = static_cast<double>(static_cast<uint8T>(payloadArray[i]) * itemUnit)/1000.0;
+       emit setData(data);
     }
 }
 
@@ -89,6 +91,9 @@ void Parse::ParseYPR()
     double yaw = YAW * 0.01;
     double pitch = PITCH * 0.01;
     double roll = ROLL * 0.01;
+
+    qDebug() << yaw;
+    emit setYPR(yaw, pitch, roll);
 }
 
 void Parse::ParseYPRattach()
@@ -114,15 +119,15 @@ void Parse::ParseArray()
 
     for (int i = 1; i <= countPckt; i++)
     {
-        uint32_t distance = ReadU4();
-        uint16_t width = ReadU2();
-        uint16_t amplitude = ReadU2();
+        qDebug() << ReadU4();//uint32_t distance = ReadU4();
+        qDebug() << ReadU2(); //uint16_t width = ReadU2();
+        qDebug() << ReadU2(); //uint16_t amplitude = ReadU2();
     }
 }
 
 void Parse::ParseQUAT()
 {
-
+    qDebug() << payloadArray;
 }
 
 void Parse::ParseDiag()
@@ -219,7 +224,6 @@ void Parse::CheckSumUpdate(uint8T byte)
 void Parse::ZeroOutData()
 {
     payloadArray.clear();
-    dataArr.clear();
 
     CHECK1 = 0;
     CHECK2 = 0;
@@ -252,6 +256,7 @@ int Parse::GetVersion(uint8T mode)
 
 void Parse::GetPayload(uint8T id, uint8T mode)
 {
+    qDebug() << id;
     switch (id)
     {
     case CMD_RESP:
@@ -359,88 +364,54 @@ void Parse::GetPayload(uint8T id, uint8T mode)
     }
 }
 
-QByteArray Parse::CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload)
+void Parse::ParseData(QByteArray &dataArray)
 {
     ZeroOutData();
-    QByteArray arrayMSG;
 
-    arrayMSG.append(static_cast<char>(0xBB));
-    arrayMSG.append(static_cast<char>(0x55));
-    arrayMSG.append(static_cast<char>(payload.size()));
-    arrayMSG.append(static_cast<char>(mode));
-    arrayMSG.append(static_cast<char>(id));
-
-    CheckSumUpdate(static_cast<uint8T>(payload.size()));
-    CheckSumUpdate(mode);
-    CheckSumUpdate(id);
-
-    if (payload.size() != 0)
+    if (dataArray.size() > 5)
     {
-        for (int i = 0; i < payload.size(); i++)
+        for (int x = 0; x < dataArray.size(); x++)
         {
-            arrayMSG.append(payload[i]);
-            CheckSumUpdate(static_cast<uint8T>(payload[i]));
-        }
-    }
-
-    arrayMSG.append(static_cast<char>(CHECK1));
-    arrayMSG.append(static_cast<char>(CHECK2));
-
-    ZeroOutData();
-
-    return arrayMSG;
-}
-
-void Parse::ParseData(QSerialPort &serialPort)
-{
-    ZeroOutData();
-    dataArr = serialPort.readAll();
-
-    if (dataArr.size() > 5)
-    {
-        for (int x = 0; x < dataArr.size(); x++)
-        {
-            if (static_cast<uint8T>(dataArr[x]) == 0xBB)
+            if (static_cast<uint8T>(dataArray[x]) == 0xBB)
             {
                 x++;
-                if (static_cast<uint8T>(dataArr[x]) == 0x55)
+                if (static_cast<uint8T>(dataArray[x]) == 0x55)
                 {
-                        x++;
-                        length = static_cast<uint8T>(dataArr[x]);
-                        CheckSumUpdate(length);
+                    x++;
+                    length = static_cast<uint8T>(dataArray[x]);
+                    CheckSumUpdate(length);
 
-                        x++;
-                        mode = static_cast<uint8T>(dataArr[x]);
-                        CheckSumUpdate(static_cast<uint8T>(mode));
+                    x++;
+                    mode = static_cast<uint8T>(dataArray[x]);
+                    CheckSumUpdate(static_cast<uint8T>(mode));
 
-                        x++;
-                        id = static_cast<uint8T>(dataArr[x]);
-                        CheckSumUpdate(id);
+                    x++;
+                    id = static_cast<uint8T>(dataArray[x]);
+                    CheckSumUpdate(id);
 
-                        x++;
-                        if (dataArr.size() - length+7 >= 0)
+                    x++;
+                    if (dataArray.size() - length+7 >= 0)
+                    {
+                        for (int i = 0; i < length; i++)
                         {
-                            for (int i = 0; i < length; i++)
-                            {
-                                payloadArray.append(dataArr[x]);
-                                CheckSumUpdate(static_cast<uint8T>(payloadArray[i]));
-                                x++;
-                            }
+                            payloadArray.append(dataArray[x]);
+                            CheckSumUpdate(static_cast<uint8T>(payloadArray[i]));
+                            x++;
                         }
-                        else
-                        {
-                            break;
-                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
 
-                        uint8T ch1 = static_cast<uint8T>(dataArr[x]);
-                        x++;
-                        uint8T ch2 = static_cast<uint8T>(dataArr[x]);
+                    uint8T ch1 = static_cast<uint8T>(dataArray[x]);
+                    x++;
+                    uint8T ch2 = static_cast<uint8T>(dataArray[x]);
 
-                        if (ch1 == CHECK1 && ch2 == CHECK2)
-                        {
-                            GetPayload(id, mode);
-                        }
-
+                    if (ch1 == CHECK1 && ch2 == CHECK2)
+                    {
+                        GetPayload(id, mode);
+                    }
                 }
             }
         }

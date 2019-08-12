@@ -4,22 +4,308 @@
 
 CentralWidget::CentralWidget(QWidget *parent) :
     QWidget(parent),
+    m_yPRTimer(new QTimer(this)),
     m_serialPort(new QSerialPort(this)),
     m_realTimePlot(new realTimePlot(this)),
-    m_parse(new Parse(this))
+    m_parse(new Parse(this)),
+    m_sendData(new SendData)
 {
+    createDistWidget();
+    createArrayWidget();
+    createYPRWidget();
+    createAGCWidget();
+    createTranscWidget();
+    createSPDWidget();
+
     CreateInterface();
     CreateLayouts();
     CreateConnections();
     SetPorts();
+
+    m_yPRTimer->setInterval(500);
 }
 
 void CentralWidget::CreateConnections()
 {
      connect(m_connectB, &QPushButton::clicked, this, &CentralWidget::onConnect);
-     connect(m_disconnectB, &QPushButton::clicked, this, &CentralWidget::onDisconnect); //[=](){SendMSG(CMD_YPR, Getting);});
+     connect(m_disconnectB, &QPushButton::clicked,  this, &CentralWidget::onDisconnect);
      connect(m_serialPort, &QSerialPort::readyRead, this, &CentralWidget::parseData);
+
      connect(m_parse, &Parse::setData, m_realTimePlot, &realTimePlot::realtimeDataSlot);
+     connect(m_parse, &Parse::setYPR, m_realTimePlot, &realTimePlot::YPRDataSlot);
+
+     connect(m_pbUpdateSettChar, &QPushButton::clicked, [=](){SendMSG(CMD_CHART, Action);}); //this, &CentralWidget::GetChartActArray);
+     connect(m_pbSetArr, &QPushButton::clicked, [=](){SendMSG(CMD_ARRAY , Getting);}); //doesn't work with "Action"  //this, &CentralWidget::GetArrayActArray);
+     connect(m_pbSetYPR, &QPushButton::clicked, [=](){SendMSG(CMD_YPR, Setting);}); //this, &CentralWidget::GetYPRSettArray);
+     connect(m_pbSetAGC, &QPushButton::clicked, [=](){SendMSG(CMD_AGC, Setting);}); //this, &CentralWidget::GetAGCSettArray);
+     connect(m_pbSetTransc, &QPushButton::clicked, [=](){SendMSG(CMD_TRANSC, Setting);}); //this, &CentralWidget::GetTRANSCSettArray);
+     connect(m_pbSetSndSpd, &QPushButton::clicked, [=](){SendMSG(CMD_SND_SPD, Setting);}); //this, &CentralWidget::GetSPDSettArray);
+
+     connect(m_rbYaw, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changeYaw);
+     connect(m_rbPitch, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changePitch);
+     connect(m_rbRoll, &QCheckBox::clicked, m_realTimePlot, &realTimePlot::changeRoll);
+
+     connect(m_rbYaw, &QCheckBox::clicked, this, &CentralWidget::getYPR);
+     connect(m_rbPitch, &QCheckBox::clicked, this, &CentralWidget::getYPR);
+     connect(m_rbRoll, &QCheckBox::clicked, this, &CentralWidget::getYPR);
+
+     connect(m_yPRTimer, &QTimer::timeout, [=](){SendMSG(CMD_YPR, Getting);});
+}
+
+void CentralWidget::getYPR()
+{
+    if (!m_yPRTimer->isActive())
+    {
+        if (m_rbYaw->isChecked() || m_rbRoll->isChecked() || m_rbPitch->isChecked())
+        {
+            m_yPRTimer->start();
+        }
+        else {
+            m_yPRTimer->stop();
+        }
+    }
+}
+
+void CentralWidget::createDistWidget()
+{
+    m_comPortCB = new QComboBox(this);
+    m_comPortCB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ComboBox));
+
+    m_baudRateCB = new QComboBox(this);
+
+    m_sbStrtPosCh = new QSpinBox(this);
+    m_sbStrtPosCh->setMinimum(0); //mm
+    m_sbItemCount = new QSpinBox(this);
+    m_sbItemCount->setRange(1, 5000);
+    m_sbItemResol = new QSpinBox(this);
+    m_sbItemResol->setRange(10, 1000); //mm
+    m_sbPeriod = new QSpinBox(this);
+    m_sbPeriod->setRange(0, 65535); //ms
+
+    m_lbStr = new QLabel(this);
+    m_lbStr->setText("Start pos, mm, 0 - ");
+    m_lbCount = new QLabel(this);
+    m_lbCount->setText("Count, 1 - 5000");
+    m_lbResol = new QLabel(this);
+    m_lbResol->setText("Resolution, mm, 10 - 1000");
+    m_lbPeriod = new QLabel(this);
+    m_lbPeriod->setText("Period, ms, 0 - 65535");
+
+    m_pbUpdateSettChar = new QPushButton(tr("Update Settings"), this);
+    m_pbUpdateSettChar->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    charWidget = new QWidget;
+    QHBoxLayout *hLayoutCh= new QHBoxLayout;
+    hLayoutCh->addWidget(m_comPortCB);
+    hLayoutCh->addWidget(m_baudRateCB);
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addLayout(hLayoutCh);
+    vLayoutCh->addWidget(m_lbStr);
+    vLayoutCh->addWidget(m_sbStrtPosCh);
+    vLayoutCh->addWidget(m_lbCount);
+    vLayoutCh->addWidget(m_sbItemCount);
+    vLayoutCh->addWidget(m_lbResol);
+    vLayoutCh->addWidget(m_sbItemResol);
+    vLayoutCh->addWidget(m_lbPeriod);
+    vLayoutCh->addWidget(m_sbPeriod);
+    vLayoutCh->addWidget(m_pbUpdateSettChar);
+
+    charWidget->setLayout(vLayoutCh);
+}
+
+void CentralWidget::createArrayWidget()
+{
+    m_sbStrtPosArr = new QSpinBox(this);
+    m_sbStrtPosArr->setRange(0, 1000); //mm
+    m_sbEndPosArr = new QSpinBox(this);
+    m_sbEndPosArr->setMinimum(1000); //mm
+    m_sbMaxCountArr = new QSpinBox(this);
+    m_sbMaxCountArr->setRange(1, 200);
+    m_sbThrRiseArr = new QSpinBox(this);
+    m_sbThrRiseArr->setMinimum(0);
+    m_sbThrFallArr = new QSpinBox(this);
+    m_sbThrFallArr->setMinimum(0);
+    m_sbOverlapArr = new QSpinBox(this);
+    m_sbOverlapArr->setMinimum(0); //mm
+    m_sbMinWidthArr = new QSpinBox(this);
+    m_sbMinWidthArr->setMinimum(0); //mm
+    m_sbMinAmplArr = new QSpinBox(this);
+    m_sbMinAmplArr->setMinimum(0);
+
+    m_lbStrArr = new QLabel(this);
+    m_lbStrArr->setText("Start pos, mm, 0 - 1000");
+    m_lbEndPosArr = new QLabel(this);
+    m_lbEndPosArr->setText("End pos, mm, 1000 - ");
+    m_lbMaxCountArr = new QLabel(this);
+    m_lbMaxCountArr->setText("Mac Count, 1 - 200");
+    m_lbThrRiseArr = new QLabel(this);
+    m_lbThrRiseArr->setText("Thr rise, 0 - ");
+    m_lbThrFallArr = new QLabel(this);
+    m_lbThrFallArr->setText("Thr fall, 0 - ");
+    m_lbOverlapArr = new QLabel(this);
+    m_lbOverlapArr->setText("Overlap, mm, 0 - ");
+    m_lbMinWidthArr = new QLabel(this);
+    m_lbMinWidthArr->setText("Resolution, mm, 0 - ");
+    m_lbMinAmplArr = new QLabel(this);
+    m_lbMinAmplArr->setText("Period, 0 - ");
+
+    m_pbSetArr = new QPushButton(tr("Get array"), this);
+    m_pbSetArr->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    arrayWidget = new QWidget;
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addWidget(m_lbStrArr);
+    vLayoutCh->addWidget(m_sbStrtPosArr);
+    vLayoutCh->addWidget(m_lbEndPosArr);
+    vLayoutCh->addWidget(m_sbEndPosArr);
+    vLayoutCh->addWidget(m_lbMaxCountArr);
+    vLayoutCh->addWidget(m_sbMaxCountArr);
+    vLayoutCh->addWidget(m_lbThrRiseArr);
+    vLayoutCh->addWidget(m_sbThrRiseArr);
+    vLayoutCh->addWidget(m_lbThrFallArr);
+    vLayoutCh->addWidget(m_sbThrFallArr);
+    vLayoutCh->addWidget(m_lbOverlapArr);
+    vLayoutCh->addWidget(m_sbOverlapArr);
+    vLayoutCh->addWidget(m_lbMinWidthArr);
+    vLayoutCh->addWidget(m_sbMinWidthArr);
+    vLayoutCh->addWidget(m_lbMinAmplArr);
+    vLayoutCh->addWidget(m_sbMinAmplArr);
+    vLayoutCh->addWidget(m_pbSetArr);
+
+    arrayWidget->setLayout(vLayoutCh);
+}
+
+void CentralWidget::createYPRWidget()
+{
+    m_lbAttachYPR = new QLabel(this);
+    m_lbAttachYPR->setText("Attach,0 - 1");
+
+    m_sbAttachYPR = new QSpinBox(this);
+    m_sbAttachYPR->setRange(0, 1);
+
+    m_rbYaw = new QCheckBox("Yaw plot", this);
+    //m_rbYaw->setChecked(true);
+    m_rbPitch = new QCheckBox("Pitch plot", this);
+    //m_rbPitch->setChecked(true);
+    m_rbRoll = new QCheckBox("Roll plot", this);
+    //m_rbRoll->setChecked(true);
+
+    m_pbSetYPR = new QPushButton(tr("Set"), this);
+    m_pbSetYPR->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    YPRWidget = new QWidget;
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addWidget(m_rbYaw);
+    vLayoutCh->addWidget(m_rbPitch);
+    vLayoutCh->addWidget(m_rbRoll);
+    vLayoutCh->addWidget(m_lbAttachYPR);
+    vLayoutCh->addWidget(m_sbAttachYPR);
+    vLayoutCh->addWidget(m_pbSetYPR);
+
+    YPRWidget->setLayout(vLayoutCh);
+}
+
+void CentralWidget::createAGCWidget()
+{
+    m_lbStrPosAGC = new QLabel(this);
+    m_lbStrPosAGC->setText("Str pos, mm, 0 -");
+    m_lbOffsetAGC = new QLabel(this);
+    m_lbOffsetAGC->setText("Offset, dB/100, -48 - +48");
+    m_lbSlopeAGC = new QLabel(this);
+    m_lbSlopeAGC->setText("Slope, Exp/100, 100 - 300");
+    m_lbAbsorpAGC = new QLabel(this);
+    m_lbAbsorpAGC->setText("Absorp, dB/km, 0 - ");
+
+    m_sbStrPosAGC = new QSpinBox(this);
+    m_sbStrPosAGC->setMinimum(0); //mm
+    m_sbStrPosAGC->setValue(1000);
+    m_sbOffsetAGC = new QSpinBox(this);
+    m_sbOffsetAGC->setRange(-48, +48); //(dB)/100
+    m_sbOffsetAGC->setValue(0);
+    m_sbSlopeAGC = new QSpinBox(this);
+    m_sbSlopeAGC->setRange(100, 300); // Exp/100
+    m_sbSlopeAGC->setValue(200);
+    m_sbAbsorpAGC = new QSpinBox(this);
+    m_sbAbsorpAGC->setMinimum(0);
+
+    m_pbSetAGC = new QPushButton(tr("Set"), this);
+    m_pbSetAGC->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    AGCWidget = new QWidget;
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addWidget(m_lbStrPosAGC);
+    vLayoutCh->addWidget(m_sbStrPosAGC);
+    vLayoutCh->addWidget(m_lbOffsetAGC);
+    vLayoutCh->addWidget(m_sbOffsetAGC);
+    vLayoutCh->addWidget(m_lbSlopeAGC);
+    vLayoutCh->addWidget(m_sbSlopeAGC);
+    vLayoutCh->addWidget(m_lbAbsorpAGC);
+    vLayoutCh->addWidget(m_sbAbsorpAGC);
+    vLayoutCh->addWidget(m_pbSetAGC);
+
+    AGCWidget->setLayout(vLayoutCh);
+}
+
+void CentralWidget::createTranscWidget()
+{
+    m_lbFreqTransc = new QLabel(this);
+    m_lbFreqTransc->setText("Freq, kHz, 600 - 720");
+    m_lbPulseTransc = new QLabel(this);
+    m_lbPulseTransc->setText("Pulse, 0 - 30");
+    m_lbBoostTransc = new QLabel(this);
+    m_lbBoostTransc->setText("Boost, 0 - 1");
+
+    m_sbFreqtransc = new QSpinBox(this);
+    m_sbFreqtransc->setRange(600, 720); //kHz
+    m_sbFreqtransc->setValue(675);
+    m_sbPulseTransc = new QSpinBox(this);
+    m_sbPulseTransc->setRange(0, 30);
+    m_sbPulseTransc->setValue(10);
+    m_sbBoostTransc = new QSpinBox(this);
+    m_sbBoostTransc->setRange(0, 1);
+    m_sbBoostTransc->setValue(1);
+
+    m_pbSetTransc = new QPushButton(tr("Set"), this);
+    m_pbSetTransc->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    TtranscWidget = new QWidget;
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addWidget(m_lbFreqTransc);
+    vLayoutCh->addWidget(m_sbFreqtransc);
+    vLayoutCh->addWidget(m_lbPulseTransc);
+    vLayoutCh->addWidget(m_sbPulseTransc);
+    vLayoutCh->addWidget(m_lbBoostTransc);
+    vLayoutCh->addWidget(m_sbBoostTransc);
+    vLayoutCh->addWidget(m_pbSetTransc);
+
+    TtranscWidget->setLayout(vLayoutCh);
+}
+
+void CentralWidget::createSPDWidget()
+{
+    m_lbsndSpd = new QLabel(this);
+    m_lbsndSpd->setText("Speed, m/s, 1 - 6000");
+
+    m_sbSndSpd = new QSpinBox(this); //m/s
+    m_sbSndSpd->setRange(1, 6000);
+    m_sbSndSpd->setValue(1500);
+
+    m_pbSetSndSpd = new QPushButton(tr("Set"), this);
+    m_pbSetSndSpd->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    SPDWidget = new QWidget;
+
+    QVBoxLayout *vLayoutCh = new QVBoxLayout;
+    vLayoutCh->addWidget(m_lbsndSpd);
+    vLayoutCh->addWidget(m_sbSndSpd);
+    vLayoutCh->addWidget(m_pbSetSndSpd);
+
+    SPDWidget->setLayout(vLayoutCh);
 }
 
 void CentralWidget::CreateInterface()
@@ -29,31 +315,44 @@ void CentralWidget::CreateInterface()
     m_disconnectB = new QPushButton(tr("Disconnect"), this);
     m_disconnectB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
 
-    m_comPortCB = new QComboBox;
-    m_comPortCB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ComboBox));
-    //m_baudRateCB = new QComboBox;
+    m_textLable = new QLabel(this);
+
+    createDistWidget();
+
+    m_toolBox = new QToolBox(this);
+    m_toolBox->setFixedWidth(250);
+    m_toolBox->addItem(charWidget, "Distance");
+    m_toolBox->addItem(arrayWidget, "Array");
+    m_toolBox->addItem(YPRWidget, "YPR");
+    m_toolBox->addItem(AGCWidget, "AGC");
+    m_toolBox->addItem(TtranscWidget, "Transc");
+    m_toolBox->addItem(SPDWidget, "Sound speed");
 }
 
 void CentralWidget::CreateLayouts()
 {
-    QVBoxLayout *vLayout = new QVBoxLayout;
-    vLayout->setStretch(0,5);
-    vLayout->addWidget(m_connectB);
-    vLayout->addWidget(m_disconnectB);
-    vLayout->addWidget(m_comPortCB);
-    //vLayout->addWidget(m_baudRateCB);
+    QHBoxLayout *hLayout2 = new QHBoxLayout;
+    hLayout2->addWidget(m_connectB);
+    hLayout2->addWidget(m_disconnectB);
 
-    QHBoxLayout *hLayout = new QHBoxLayout;
-    hLayout->addLayout(vLayout);
-    hLayout->addWidget(m_realTimePlot->m_customPlot);
+    QVBoxLayout *vLayout = new QVBoxLayout;
+    vLayout->addWidget(m_toolBox);
+    vLayout->addLayout(hLayout2);
+    vLayout->addWidget(m_textLable);
+
+    QHBoxLayout *hLayout3 = new QHBoxLayout;
+    hLayout3->addLayout(vLayout);
+    hLayout3->addWidget(m_realTimePlot);
 
     setContentsMargins(0, 0, 0, 0);
-    setLayout(hLayout);
+    setLayout(hLayout3);
 }
 
 void CentralWidget::onDisconnect()
 {
     m_serialPort->close();
+    m_yPRTimer->stop();
+    m_textLable->setText("Disconnected");
 }
 
 void CentralWidget::onConnect()
@@ -62,16 +361,17 @@ void CentralWidget::onConnect()
     m_serialPort->setBaudRate(QSerialPort::Baud115200);
     if (m_serialPort->open(QIODevice::ReadWrite))
     {
-        qDebug() << "yes";
+        m_textLable->setText("Connected");
     }
     else {
-        qDebug() << "noup";
+        m_textLable->setText("Can't connect");
     }
 }
 
 void CentralWidget::parseData()
 {
-    m_parse->ParseData(*m_serialPort);
+    QByteArray dataArray = m_serialPort->readAll();
+    m_parse->ParseData(dataArray);
 }
 
 void CentralWidget::SetPorts()
@@ -85,30 +385,28 @@ void CentralWidget::SetPorts()
 
 void CentralWidget::SendMSG(uint8T id, uint8T mode)
 {
-    m_serialPort->write(GetArrayMSG(id, mode));
+    if (m_serialPort->write(GetArrayMSG(id, mode)) == -1)
+    {
+        m_textLable->setText(m_serialPort->errorString());
+    }
 }
 
 QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
 {
-    QByteArray arr;
-
     switch(id)
     {
     case CMD_CHART:
         switch (mode)
         {
             case Getting:   //Get setting of Chart
-                arr = "0";
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetNoPayloadArray(id, mode);
             case Action:    //Get chart with/without(?) update settings
-                arr = CreateArrChartAct();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetChartActArray(id, mode);
         }
     break;
     //Get array
     case CMD_ARRAY:
-        arr = CreateArrArrayAct();
-        return m_parse->CreateArrayMSG(id, mode, arr);
+        return GetArrayActArray(id, mode);
     case CMD_YPR:
         switch (mode)
         {
@@ -117,16 +415,13 @@ QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
                 switch (m_parse->GetVersion(mode))
                 {
                 case 0:
-                    arr = "0";
-                    return m_parse->CreateArrayMSG(id, mode, arr);
+                    return GetNoPayloadArray(id, mode);
                 case 1:
-                    arr = CreateArrayYPRGett();
-                    return m_parse->CreateArrayMSG(id, mode, arr);
+                    return GetYPRGettArray(id, mode);
                 }
             break;
             case Setting:
-                arr = CreateArrayYPRSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetYPRSettArray(id, mode);
         }
         break;
     case CMD_QUAT:
@@ -134,35 +429,30 @@ QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
         switch (mode)
         {
         case Getting:
-            arr = "0";
-            return m_parse->CreateArrayMSG(id, mode, arr);
+            return GetNoPayloadArray(id, mode);
         }
     break;
     case CMD_TEMP:
         switch (mode)
         {
         case Getting:
-            arr = "0";
-            return m_parse->CreateArrayMSG(id, mode, arr);
+            return GetNoPayloadArray(id, mode);
         }
     break;
     case CMD_DIAG:
         switch (mode)
         {
         case Getting:
-            arr = "0";
-            return m_parse->CreateArrayMSG(id, mode, arr);
+            return GetNoPayloadArray(id, mode);
         }
     break;
     case CMD_AGC:
         switch (mode)
         {
             case Getting:
-                arr = "0";
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetNoPayloadArray(id, mode);
             case Setting:
-                arr = CreateArrayAGCSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetAGCSettArray(id, mode);
         }
     break;
     case CMD_TRANSC:
@@ -170,23 +460,19 @@ QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
         {
             case Getting:
             {
-                arr = "0";
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetNoPayloadArray(id, mode);
             }
             case Setting:
-                arr = CreateArrayTRANSCSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetTRANSCSettArray(id, mode);
         }
     break;
     case CMD_SND_SPD:
         switch (mode)
         {
             case Getting:
-                arr = "0";
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetNoPayloadArray(id, mode);
             case Setting:
-                arr = CreateArraySPDSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetSPDSettArray(id, mode);
         }
     break;
     case CMD_UART:
@@ -194,59 +480,56 @@ QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
         {
             case Getting:
             {
-                arr = CreateArrayUARTGett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetUARTGettArray(id, mode);
             }
             case Setting:
             {
-                arr = CreateArrayUARTSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetUARTSettArray(id, mode);
             }
         }
     break;
     case CMD_FLASH:
-        arr = CreateArrayFLASHAct();
-        return m_parse->CreateArrayMSG(id, mode, arr);
+        return GetFLASHActArray(id, mode);
     case CMD_FORMAT:
-        arr = CreateArrayFLASHAct();
-        return m_parse->CreateArrayMSG(id, mode, arr);
+        return GetFORMATSettArray(id, mode);
     case CMD_REBOOT:
-        arr = CreateArrayREBOOTAct();
-        return m_parse->CreateArrayMSG(id, mode, arr);
+        return GetREBOOTActArray(id, mode);
     case CMD_MARK:
         switch (mode)
         {
             case Getting:
             {
-                arr = "0";
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetNoPayloadArray(id, mode);
             }
             case Setting:
             {
-                arr = CreateArrayMARKSett();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetMARKSettArray(id, mode);
             }
             case Content:
             {
-                arr = CreateArrayMARKCont();
-                return m_parse->CreateArrayMSG(id, mode, arr);
+                return GetMARKContArray(id, mode);
             }
         }
     break;
     case CMD_VERSION :
-        arr = "0";
-        return m_parse->CreateArrayMSG(id, mode, arr);
+        return GetNoPayloadArray(id, mode);
     default: break;
     }
     return nullptr;
 }
 
-QByteArray CentralWidget::CreateArrChartAct()
+QByteArray CentralWidget::GetNoPayloadArray(uint8T &id, uint8T &mode)
 {
-    uint32_t STRT_POS;
-    uint16_t ITEM_COUNT;
-    uint16_t ITEM_RESOL;
-    uint16_t REPEAT_PERIOD;
+    QByteArray arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
+}
+
+QByteArray CentralWidget::GetChartActArray(uint8T &id, uint8T &mode)
+{
+    uint32_t STRT_POS = m_sbStrtPosCh->value();
+    uint16_t ITEM_COUNT = m_sbItemCount->value();
+    uint16_t ITEM_RESOL = m_sbItemResol->value();
+    uint16_t REPEAT_PERIOD = m_sbPeriod->value();
     uint32_t RESERVED = 0;
 
     QByteArray arrayPayload;
@@ -257,20 +540,19 @@ QByteArray CentralWidget::CreateArrChartAct()
     arrayPayload.append((const char*)&REPEAT_PERIOD, sizeof(REPEAT_PERIOD));
     arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
 
-    return  arrayPayload;
-
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrArrayAct()
+QByteArray CentralWidget::GetArrayActArray(uint8T &id, uint8T &mode)
 {
-    uint32_t STRT_POS;
-    uint32_t END_POS;
-    uint16_t MAX_COUNT;
-    uint16_t THR_RISE;
-    uint16_t THR_FALL;
-    uint16_t OVERLAP;
-    uint16_t MIN_WIDTH;
-    uint16_t MIN_AMPL;
+    uint32_t STRT_POS = m_sbStrtPosArr->value();
+    uint32_t END_POS = m_sbEndPosArr->value();
+    uint16_t MAX_COUNT = m_sbMaxCountArr->value();
+    uint16_t THR_RISE = m_sbThrRiseArr->value();
+    uint16_t THR_FALL = m_sbThrFallArr->value();
+    uint16_t OVERLAP = m_sbOverlapArr->value();
+    uint16_t MIN_WIDTH = m_sbMinWidthArr->value();
+    uint16_t MIN_AMPL = m_sbMinAmplArr->value();
 
     QByteArray arrayPayload;
 
@@ -283,35 +565,35 @@ QByteArray CentralWidget::CreateArrArrayAct()
     arrayPayload.append((const char*)&MIN_WIDTH, sizeof(MIN_WIDTH));
     arrayPayload.append((const char*)&MIN_AMPL, sizeof(MIN_AMPL));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayYPRGett()
+QByteArray CentralWidget::GetYPRGettArray(uint8T &id, uint8T &mode)
 {
-    uint8T ATTACH;
+    uint8T ATTACH = m_sbAttachYPR->value();
 
     QByteArray arrayPayload;
     arrayPayload.append((const char*)&ATTACH, sizeof(ATTACH));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayYPRSett()
+QByteArray CentralWidget::GetYPRSettArray(uint8T &id, uint8T &mode)
 {
-    uint8T ATTACH;
+    uint8T ATTACH  = m_sbAttachYPR->value();
 
     QByteArray arrayPayload;
     arrayPayload.append((const char*)&ATTACH, sizeof(ATTACH));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayAGCSett()
+QByteArray CentralWidget::GetAGCSettArray(uint8T &id, uint8T &mode)
 {
-    uint32_t STRT_POS;
-    int16_t OFFSET;
-    uint16_t SLOPE;
-    uint16_t ABSORP;
+    uint32_t STRT_POS = m_sbStrPosAGC->value();
+    int16_t OFFSET = m_sbOffsetAGC->value();
+    uint16_t SLOPE = m_sbSlopeAGC->value();
+    uint16_t ABSORP = m_sbAbsorpAGC->value();
     uint32_t RESERVED = 0;
     uint32_t RESERVED2 = 0;
 
@@ -324,14 +606,14 @@ QByteArray CentralWidget::CreateArrayAGCSett()
     arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
     arrayPayload.append((const char*)&RESERVED2, sizeof(RESERVED2));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayTRANSCSett()
+QByteArray CentralWidget::GetTRANSCSettArray(uint8T &id, uint8T &mode)
 {
-    uint32_t FREQ;
-    uint8T PULSE;
-    uint8T BOOST;
+    uint32_t FREQ = m_sbFreqtransc->value();
+    uint8T PULSE = m_sbPulseTransc->value();
+    uint8T BOOST = m_sbBoostTransc->value();
     uint32_t RESERVED = 0;
 
     QByteArray arrayPayload;
@@ -341,12 +623,12 @@ QByteArray CentralWidget::CreateArrayTRANSCSett()
     arrayPayload.append((const char*)&BOOST, sizeof(BOOST));
     arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArraySPDSett()
+QByteArray CentralWidget::GetSPDSettArray(uint8T &id, uint8T &mode)
 {
-    uint16_t SOUND_SPEED;
+    uint16_t SOUND_SPEED = m_sbSndSpd->value();
     uint32_t RESERVED = 0;
 
     QByteArray arrayPayload;
@@ -354,10 +636,11 @@ QByteArray CentralWidget::CreateArraySPDSett()
     arrayPayload.append((const char*)&SOUND_SPEED, sizeof(SOUND_SPEED));
     arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayUARTSett()
+//is not using now
+QByteArray CentralWidget::GetUARTSettArray(uint8T &id, uint8T &mode)
 {
     uint32_t UART_KEY = 0xC96B5D4A;
     uint8T UART_ID;
@@ -371,10 +654,10 @@ QByteArray CentralWidget::CreateArrayUARTSett()
     arrayPayload.append((const char*)&BAUDRATE, sizeof(BAUDRATE));
     arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayUARTGett()
+QByteArray CentralWidget::GetUARTGettArray(uint8T &id, uint8T &mode)
 {
     uint32_t UART_KEY = 0xC96B5D4A;
     uint8T UART_ID;
@@ -384,10 +667,10 @@ QByteArray CentralWidget::CreateArrayUARTGett()
     arrayPayload.append((const char*)&UART_KEY, sizeof(UART_KEY));
     arrayPayload.append((const char*)&UART_ID, sizeof(UART_ID));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayFLASHAct()
+QByteArray CentralWidget::GetFLASHActArray(uint8T &id, uint8T &mode)
 {
     uint32_t KEY = 0xC96B5D4A;
 
@@ -395,10 +678,10 @@ QByteArray CentralWidget::CreateArrayFLASHAct()
 
     arrayPayload.append((const char*)&KEY, sizeof(KEY));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayFORMATSett()
+QByteArray CentralWidget::GetFORMATSettArray(uint8T &id, uint8T &mode)
 {
     uint32_t KEY = 0xC96B5D4A;
 
@@ -406,10 +689,10 @@ QByteArray CentralWidget::CreateArrayFORMATSett()
 
     arrayPayload.append((const char*)&KEY, sizeof(KEY));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayREBOOTAct()
+QByteArray CentralWidget::GetREBOOTActArray(uint8T &id, uint8T &mode)
 {
     uint32_t KEY = 0xC96B5D4A;
 
@@ -417,10 +700,10 @@ QByteArray CentralWidget::CreateArrayREBOOTAct()
 
     arrayPayload.append((const char*)&KEY, sizeof(KEY));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayMARKSett()
+QByteArray CentralWidget::GetMARKSettArray(uint8T &id, uint8T &mode)
 {
     uint32_t KEY = 0xC96B5D4A;
 
@@ -428,10 +711,10 @@ QByteArray CentralWidget::CreateArrayMARKSett()
 
     arrayPayload.append((const char*)&KEY, sizeof(KEY));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }
 
-QByteArray CentralWidget::CreateArrayMARKCont()
+QByteArray CentralWidget::GetMARKContArray(uint8T &id, uint8T &mode)
 {
     uint32_t MARK;
 
@@ -439,5 +722,5 @@ QByteArray CentralWidget::CreateArrayMARKCont()
 
     arrayPayload.append((const char*)&MARK, sizeof(MARK));
 
-    return  arrayPayload;
+    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
 }

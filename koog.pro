@@ -27,6 +27,7 @@ CONFIG += c++11
 SOURCES += \
         CentralWidget.cpp \
         Parse.cpp \
+        SendData.cpp \
         main.cpp \
         mainwindow.cpp \
         qcustomplot.cpp \
@@ -35,6 +36,7 @@ SOURCES += \
 HEADERS += \
         CentralWidget.h \
         Parse.h \
+        SendData.h \
         mainwindow.h \
         qcustomplot.h \
         realtimeplot.h

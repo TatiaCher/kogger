@@ -37,8 +37,7 @@ class Parse : public QObject
 public:
     explicit Parse(QObject *parent = nullptr);
 
-    void ParseData(QSerialPort &serialPort);
-    QByteArray CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload);
+    void ParseData(QByteArray &dataArray);
     int GetVersion(uint8T mode);
 private:
 
@@ -72,7 +71,6 @@ private:
 
     int payloadPos = 0;
     QByteArray payloadArray;
-    QByteArray dataArr;
 
     uint8T length = 0;
     uint8T mode = 0;
@@ -82,7 +80,8 @@ private:
     uint8T CHECK2 = 0;
 
 signals:
-    void setData(double);
+    void setData(double&);
+    void setYPR(double&, double&, double&);
 };
 
 #endif // PARSEARR_H
