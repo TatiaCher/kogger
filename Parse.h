@@ -60,7 +60,7 @@ private:
     void ParseYPRattach();
     void ParseTemp();
     void ParseArray();
-    void ParseQUAT(); //!!!!!!!!!!!!!
+    void ParseQUAT();
     void ParseDiag();
     void ParseAGC();
     void ParseTransc();
@@ -78,6 +78,8 @@ private:
 
     uint8T CHECK1 = 0;
     uint8T CHECK2 = 0;
+
+    int yprt = 0;
 
 signals:
     void gotDistanceData(double&);

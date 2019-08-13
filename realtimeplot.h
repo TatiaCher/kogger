@@ -11,10 +11,6 @@ class realTimePlot : public QWidget
 public:
     explicit realTimePlot(QWidget *parent = nullptr);
 
-    void changeYaw();
-    void changePitch();
-    void changeRoll();
-
 private:
     void createLayout();
     void plotSettings();

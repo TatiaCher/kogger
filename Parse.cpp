@@ -92,7 +92,6 @@ void Parse::ParseYPR()
     double pitch = PITCH * 0.01;
     double roll = ROLL * 0.01;
 
-    qDebug() << yaw;
     emit gotYPRdata(yaw, pitch, roll);
 }
 
@@ -121,15 +120,18 @@ void Parse::ParseArray()
 
     for (int i = 1; i <= countPckt; i++)
     {
-        qDebug() << ReadU4();//uint32_t distance = ReadU4();
-        qDebug() << ReadU2(); //uint16_t width = ReadU2();
-        qDebug() << ReadU2(); //uint16_t amplitude = ReadU2();
+        uint32_t distance = ReadU4();
+        uint16_t width = ReadU2();
+        uint16_t amplitude = ReadU2();
     }
 }
 
 void Parse::ParseQUAT()
 {
-    qDebug() << payloadArray;
+    float W0 = ReadU4();
+    float W1 = ReadU4();
+    float W2 = ReadU4();
+    float W3 = ReadU4();
 }
 
 void Parse::ParseDiag()
@@ -301,13 +303,13 @@ void Parse::GetPayload(uint8T id, uint8T mode)
         }
         break;
     }
-    case CMD_QUAT: //parse
+    case CMD_QUAT:
     {
         //Attitude information in quaternion format
         ParseQUAT();
         break;
     }
-    case CMD_TEMP:
+    case 0x12:
     {
         qDebug() << "0x12";
 
@@ -418,4 +420,5 @@ void Parse::ParseData(QByteArray &dataArray)
             }
         }
     }
+
 }

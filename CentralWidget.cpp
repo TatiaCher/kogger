@@ -10,19 +10,12 @@ CentralWidget::CentralWidget(QWidget *parent) :
     m_parse(new Parse(this)),
     m_sendData(new SendData)
 {
-    createDistWidget();
-    createArrayWidget();
-    createYPRWidget();
-    createAGCWidget();
-    createTranscWidget();
-    createSPDWidget();
-
     CreateInterface();
     CreateLayouts();
     CreateConnections();
     SetPorts();
 
-    m_yPRTimer->setInterval(1000);
+    m_yPRTimer->setInterval(2000);
 }
 
 void CentralWidget::CreateConnections()
@@ -32,6 +25,8 @@ void CentralWidget::CreateConnections()
      connect(m_serialPort, &QSerialPort::readyRead, this, &CentralWidget::parseData);
 
      connect(m_parse, &Parse::gotDistanceData, m_realTimePlot, &realTimePlot::realtimeDataSlot);
+     connect(m_parse, &Parse::gotYPRdata, this, &CentralWidget::setYPR);
+     connect(m_parse, &Parse::gotTempData, this, &CentralWidget::setTemp);
 
      connect(m_pbUpdateSettChar, &QPushButton::clicked, [=](){SendMSG(CMD_CHART, Action);}); //this, &CentralWidget::GetChartActArray);
      connect(m_pbSetArr, &QPushButton::clicked, [=](){SendMSG(CMD_ARRAY , Getting);}); //doesn't work with "Action"  //this, &CentralWidget::GetArrayActArray);
@@ -39,17 +34,8 @@ void CentralWidget::CreateConnections()
      connect(m_pbSetAGC, &QPushButton::clicked, [=](){SendMSG(CMD_AGC, Setting);}); //this, &CentralWidget::GetAGCSettArray);
      connect(m_pbSetTransc, &QPushButton::clicked, [=](){SendMSG(CMD_TRANSC, Setting);}); //this, &CentralWidget::GetTRANSCSettArray);
      connect(m_pbSetSndSpd, &QPushButton::clicked, [=](){SendMSG(CMD_SND_SPD, Setting);}); //this, &CentralWidget::GetSPDSettArray);
-     connect(m_parse, &Parse::gotYPRdata, this, &CentralWidget::setYPR);
-     connect(m_parse, &Parse::gotTempData, this, &CentralWidget::setTemp);
 
-     connect(m_yPRTimer, &QTimer::timeout, this, &CentralWidget::setdata); //[=](){SendMSG(CMD_YPR, Getting);});
-}
-
-void CentralWidget::setdata()
-{
-    SendMSG(CMD_TEMP, Getting);
-    SendMSG(CMD_YPR, Getting);
-
+     connect(m_yPRTimer, &QTimer::timeout, this, &CentralWidget::getYRPTemp);
 }
 
 void CentralWidget::startTimer()
@@ -58,6 +44,12 @@ void CentralWidget::startTimer()
     {
         m_yPRTimer->start();
     }
+}
+
+void CentralWidget::getYRPTemp()
+{
+    SendMSG(CMD_TEMP, Getting);
+    SendMSG(CMD_YPR, Getting);
 }
 
 void CentralWidget::setYPR(double &yaw, double &pitch, double &roll)
@@ -69,15 +61,134 @@ void CentralWidget::setYPR(double &yaw, double &pitch, double &roll)
 
 void CentralWidget::setTemp(double &tempIMU, double &tempCPU)
 {
-    m_teRoll->setText(QString("%1").arg(tempIMU));
+    m_teTemp->setText(QString("%1").arg(tempIMU));
+}
+
+void CentralWidget::onDisconnect()
+{
+    m_serialPort->close();
+    m_yPRTimer->stop();
+    m_textLable->setText("Disconnected");
+    m_connectB->setEnabled(true);
+}
+
+void CentralWidget::onConnect()
+{
+    m_serialPort->setPortName(m_comPortCB->currentText());
+    m_serialPort->setBaudRate(QSerialPort::Baud115200);
+    if (m_serialPort->open(QIODevice::ReadWrite))
+    {
+        m_connectB->setEnabled(false);
+        m_textLable->setText("Connected");
+        startTimer();
+        getYRPTemp();
+    }
+    else {
+        m_textLable->setText("Can't connect");
+    }
+
+}
+
+void CentralWidget::parseData()
+{
+    QByteArray dataArray = m_serialPort->readAll();
+    m_parse->ParseData(dataArray);
+}
+
+void CentralWidget::SetPorts()
+{
+    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
+    for(QSerialPortInfo &port: ports)
+    {
+        m_comPortCB->addItem(port.portName());
+    }
+}
+
+void CentralWidget::SendMSG(uint8T id, uint8T mode)
+{
+    if (m_serialPort->write(GetArrayMSG(id, mode)) == -1)
+    {
+        m_textLable->setText(m_serialPort->errorString());
+    }
+}
+
+void CentralWidget::CreateInterface()
+{
+    m_comPortCB = new QComboBox(this);
+
+    m_connectB = new QPushButton(tr("Connect"), this);
+    m_connectB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+    m_disconnectB = new QPushButton(tr("Disconnect"), this);
+    m_disconnectB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
+
+    m_textLable = new QLabel(this);
+
+    m_lbYaw = new QLabel("Yaw", this);
+    m_teYaw = new QLineEdit(this);
+    m_teYaw->setReadOnly(true);
+    m_lbPitch = new QLabel("Pitch", this);
+    m_tePitch = new QLineEdit(this);
+    m_tePitch->setReadOnly(true);
+    m_lbRoll = new QLabel("Roll", this);
+    m_teRoll = new QLineEdit(this);
+    m_teRoll->setReadOnly(true);
+    m_lbTemp = new QLabel("Temp", this);
+    m_teTemp = new QLineEdit(this);
+    m_teTemp->setReadOnly(true);
+
+    createDistWidget();
+    createArrayWidget();
+    createYPRWidget();
+    createAGCWidget();
+    createTranscWidget();
+    createSPDWidget();
+
+    m_toolBox = new QToolBox(this);
+    m_toolBox->setFixedWidth(250);
+    m_toolBox->addItem(charWidget, "Distance");
+    m_toolBox->addItem(arrayWidget, "Array");
+    m_toolBox->addItem(YPRWidget, "YPR");
+    m_toolBox->addItem(AGCWidget, "AGC");
+    m_toolBox->addItem(TtranscWidget, "Transc");
+    m_toolBox->addItem(SPDWidget, "Sound speed");
+}
+
+void CentralWidget::CreateLayouts()
+{
+    QHBoxLayout *hLayout2 = new QHBoxLayout;
+    hLayout2->addWidget(m_connectB);
+    hLayout2->addWidget(m_disconnectB);
+
+    QVBoxLayout *vLayout = new QVBoxLayout;
+    vLayout->addWidget(m_comPortCB);
+    vLayout->addWidget(m_toolBox);
+    vLayout->addLayout(hLayout2);
+    vLayout->addWidget(m_textLable);
+
+    QHBoxLayout * hLayout3 = new QHBoxLayout;
+    hLayout3->addWidget(m_lbYaw);
+    hLayout3->addWidget(m_teYaw);
+    hLayout3->addWidget(m_lbPitch);
+    hLayout3->addWidget(m_tePitch);
+    hLayout3->addWidget(m_lbRoll);
+    hLayout3->addWidget(m_teRoll);
+    hLayout3->addWidget(m_lbTemp);
+    hLayout3->addWidget(m_teTemp);
+
+    QVBoxLayout *vLayout2 = new QVBoxLayout;
+    vLayout2->addLayout(hLayout3);
+    vLayout2->addWidget(m_realTimePlot);
+
+    QHBoxLayout *hLayout4 = new QHBoxLayout;
+    hLayout4->addLayout(vLayout);
+    hLayout4->addLayout(vLayout2);
+
+    setContentsMargins(0, 0, 0, 0);
+    setLayout(hLayout4);
 }
 
 void CentralWidget::createDistWidget()
 {
-    m_comPortCB = new QComboBox(this);
-    m_comPortCB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ComboBox));
-
-    m_baudRateCB = new QComboBox(this);
 
     m_sbStrtPosCh = new QSpinBox(this);
     m_sbStrtPosCh->setMinimum(0); //mm
@@ -101,12 +212,8 @@ void CentralWidget::createDistWidget()
     m_pbUpdateSettChar->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
 
     charWidget = new QWidget;
-    QHBoxLayout *hLayoutCh= new QHBoxLayout;
-    hLayoutCh->addWidget(m_comPortCB);
-    hLayoutCh->addWidget(m_baudRateCB);
 
     QVBoxLayout *vLayoutCh = new QVBoxLayout;
-    vLayoutCh->addLayout(hLayoutCh);
     vLayoutCh->addWidget(m_lbStr);
     vLayoutCh->addWidget(m_sbStrtPosCh);
     vLayoutCh->addWidget(m_lbCount);
@@ -302,117 +409,6 @@ void CentralWidget::createSPDWidget()
     vLayoutCh->addWidget(m_pbSetSndSpd);
 
     SPDWidget->setLayout(vLayoutCh);
-}
-
-void CentralWidget::CreateInterface()
-{
-    m_connectB = new QPushButton(tr("Connect"), this);
-    m_connectB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
-    m_disconnectB = new QPushButton(tr("Disconnect"), this);
-    m_disconnectB->setSizePolicy(QSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed, QSizePolicy::ToolButton));
-
-    m_textLable = new QLabel(this);
-
-    m_lbYaw = new QLabel("Yaw", this);
-    m_teYaw = new QLineEdit(this);
-    m_teYaw->setReadOnly(true);
-    m_lbPitch = new QLabel("Pitch", this);
-    m_tePitch = new QLineEdit(this);
-    m_tePitch->setReadOnly(true);
-    m_lbRoll = new QLabel("Roll", this);
-    m_teRoll = new QLineEdit(this);
-    m_teRoll->setReadOnly(true);
-    m_lbTemp = new QLabel("Temp", this);
-    m_teTemp = new QLineEdit(this);
-    m_teTemp->setReadOnly(true);
-
-    createDistWidget();
-
-    m_toolBox = new QToolBox(this);
-    m_toolBox->setFixedWidth(250);
-    m_toolBox->addItem(charWidget, "Distance");
-    m_toolBox->addItem(arrayWidget, "Array");
-    m_toolBox->addItem(YPRWidget, "YPR");
-    m_toolBox->addItem(AGCWidget, "AGC");
-    m_toolBox->addItem(TtranscWidget, "Transc");
-    m_toolBox->addItem(SPDWidget, "Sound speed");
-}
-
-void CentralWidget::CreateLayouts()
-{
-    QHBoxLayout *hLayout2 = new QHBoxLayout;
-    hLayout2->addWidget(m_connectB);
-    hLayout2->addWidget(m_disconnectB);
-
-    QVBoxLayout *vLayout = new QVBoxLayout;
-    vLayout->addWidget(m_toolBox);
-    vLayout->addLayout(hLayout2);
-    vLayout->addWidget(m_textLable);
-
-    QHBoxLayout * hLayout3 = new QHBoxLayout;
-    hLayout3->addWidget(m_lbYaw);
-    hLayout3->addWidget(m_teYaw);
-    hLayout3->addWidget(m_lbPitch);
-    hLayout3->addWidget(m_tePitch);
-    hLayout3->addWidget(m_lbRoll);
-    hLayout3->addWidget(m_teRoll);
-    hLayout3->addWidget(m_lbTemp);
-    hLayout3->addWidget(m_teTemp);
-
-    QVBoxLayout *vLayout2 = new QVBoxLayout;
-    vLayout2->addLayout(hLayout3);
-    vLayout2->addWidget(m_realTimePlot);
-
-    QHBoxLayout *hLayout4 = new QHBoxLayout;
-    hLayout4->addLayout(vLayout);
-    hLayout4->addLayout(vLayout2);
-
-    setContentsMargins(0, 0, 0, 0);
-    setLayout(hLayout4);
-}
-
-void CentralWidget::onDisconnect()
-{
-    m_serialPort->close();
-    m_yPRTimer->stop();
-    m_textLable->setText("Disconnected");
-}
-
-void CentralWidget::onConnect()
-{
-    m_serialPort->setPortName(m_comPortCB->currentText());
-    m_serialPort->setBaudRate(QSerialPort::Baud115200);
-    if (m_serialPort->open(QIODevice::ReadWrite))
-    {
-        m_textLable->setText("Connected");
-        startTimer();
-    }
-    else {
-        m_textLable->setText("Can't connect");
-    }
-}
-
-void CentralWidget::parseData()
-{
-    QByteArray dataArray = m_serialPort->readAll();
-    m_parse->ParseData(dataArray);
-}
-
-void CentralWidget::SetPorts()
-{
-    QList<QSerialPortInfo> ports = QSerialPortInfo::availablePorts();
-    for(QSerialPortInfo &port: ports)
-    {
-        m_comPortCB->addItem(port.portName());
-    }
-}
-
-void CentralWidget::SendMSG(uint8T id, uint8T mode)
-{
-    if (m_serialPort->write(GetArrayMSG(id, mode)) == -1)
-    {
-        m_textLable->setText(m_serialPort->errorString());
-    }
 }
 
 QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)

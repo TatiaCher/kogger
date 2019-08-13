@@ -8,15 +8,14 @@
 #include <QWidget>
 #include <QSerialPort>
 #include <QSerialPortInfo>
-#include <QList>
 
-class CentralWidget : public QWidget {
+
+class CentralWidget : public QWidget
+{
     Q_OBJECT
 
 public:
     explicit CentralWidget(QWidget *parent = nullptr);
-
-    void onConnect();
 
 private:
     void CreateInterface();
@@ -26,10 +25,6 @@ private:
     void SendMSG(uint8T id, uint8T mode);
 
     void startTimer();
-    void setYPR(double &yaw, double &pitch, double &roll);
-    void setTemp(double &tempIMU, double &tempCPU);
-
-    void setdata();
 
     QByteArray GetArrayMSG(uint8T &id, uint8T &mode);
 
@@ -56,6 +51,11 @@ private:
     Parse *m_parse;
     SendData *m_sendData;
 
+    QPushButton *m_connectB;
+    QPushButton *m_disconnectB;
+
+    QLabel *m_textLable;
+
     QLabel *m_lbYaw;
     QLineEdit *m_teYaw;
     QLabel *m_lbPitch;
@@ -69,7 +69,6 @@ private:
 
     QWidget *charWidget;
     void createDistWidget();
-    QComboBox *m_baudRateCB;
     QComboBox *m_comPortCB;
     QSpinBox * m_sbStrtPosCh; //mm
     QLabel *m_lbStr;
@@ -142,16 +141,14 @@ private:
     //MARK
     //VERSION
 
-    QPushButton *m_connectB;
-    QPushButton *m_disconnectB;
-
-    QLabel *m_textLable;
-
-signals:
-
 private slots:
-    void parseData();
     void onDisconnect();
+    void onConnect();
+    void parseData();
+    void getYRPTemp();
+    void setYPR(double &yaw, double &pitch, double &roll);
+    void setTemp(double &tempIMU, double &tempCPU);
+
 };
 
 #endif // MAINWIDGET_H

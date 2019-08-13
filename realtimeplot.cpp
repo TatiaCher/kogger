@@ -11,6 +11,7 @@ realTimePlot::realTimePlot(QWidget *parent) :
     plotSettings();
     m_time.start();
 }
+
 void realTimePlot::createLayout()
 {
     QVBoxLayout *layout = new QVBoxLayout;
@@ -22,25 +23,16 @@ void realTimePlot::createLayout()
 void realTimePlot::plotSettings()
 {
     m_customPlot->setMinimumSize(500, 400);
-    m_customPlot->setBackground(QBrush(QColor(236, 239, 241)));
+    m_customPlot->setBackground(QBrush(QColor(230, 230, 230)));
 
-    m_customPlot->addGraph(); // length
-    m_customPlot->graph(0)->setPen(QPen(QPen(Qt::red)));
-
-    m_customPlot->addGraph(); // yaw
-    m_customPlot->graph(1)->setPen(QPen(QPen(Qt::cyan)));
-
-    m_customPlot->addGraph(); // pitch
-    m_customPlot->graph(2)->setPen(QPen(QPen(Qt::green)));
-
-    m_customPlot->addGraph(); // roll
-    m_customPlot->graph(3)->setPen(QPen(QPen(Qt::blue)));
+    m_customPlot->addGraph();
+    m_customPlot->graph(0)->setPen(QPen(Qt::red));
 
     QSharedPointer<QCPAxisTickerTime> timeTicker(new QCPAxisTickerTime);
     timeTicker->setTimeFormat("%m:%s");
     m_customPlot->xAxis->setTicker(timeTicker);
     m_customPlot->axisRect()->setupFullAxesBox();
-    m_customPlot->yAxis->setRange(-30.0, 30.0);
+    m_customPlot->yAxis->setRange(0.0, 30.0);
 
     connect(m_customPlot->xAxis, SIGNAL(rangeChanged(QCPRange)), m_customPlot->xAxis2, SLOT(setRange(QCPRange)));
     connect(m_customPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), m_customPlot->yAxis2, SLOT(setRange(QCPRange)));
@@ -48,7 +40,7 @@ void realTimePlot::plotSettings()
 
 void realTimePlot::realtimeDataSlot(double &value)
 {
-    double key = m_time.elapsed()/1000.0; //QDateTime::currentDateTime().toMSecsSinceEpoch()/1000.0;
+    double key = m_time.elapsed()/1000.0;
 
     if (key - m_lastPointKey > 0.02)
     {
