@@ -7,7 +7,7 @@ CentralWidget::CentralWidget(QWidget *parent) :
     m_yPRTimer(new QTimer(this)),
     m_serialPort(new QSerialPort(this)),
     m_realTimePlot(new realTimePlot(this)),
-    m_parse(new Parse(this)),
+    m_parse(new Parse),
     m_sendData(new SendData)
 {
     CreateInterface();
@@ -15,53 +15,106 @@ CentralWidget::CentralWidget(QWidget *parent) :
     CreateConnections();
     SetPorts();
 
-    m_yPRTimer->setInterval(2000);
+    m_yPRTimer->setInterval(1000);
 }
 
 void CentralWidget::CreateConnections()
 {
-     connect(m_connectB, &QPushButton::clicked, this, &CentralWidget::onConnect);
-     connect(m_disconnectB, &QPushButton::clicked,  this, &CentralWidget::onDisconnect);
-     connect(m_serialPort, &QSerialPort::readyRead, this, &CentralWidget::parseData);
+    connect(m_connectB, &QPushButton::clicked, this, &CentralWidget::onConnect);
+    connect(m_disconnectB, &QPushButton::clicked,  this, &CentralWidget::onDisconnect);
 
-     connect(m_parse, &Parse::gotDistanceData, m_realTimePlot, &realTimePlot::realtimeDataSlot);
-     connect(m_parse, &Parse::gotYPRdata, this, &CentralWidget::setYPR);
-     connect(m_parse, &Parse::gotTempData, this, &CentralWidget::setTemp);
+    connect(m_serialPort, &QSerialPort::readyRead, this, &CentralWidget::parseData);
 
-     connect(m_pbUpdateSettChar, &QPushButton::clicked, [=](){SendMSG(CMD_CHART, Action);}); //this, &CentralWidget::GetChartActArray);
-     connect(m_pbSetArr, &QPushButton::clicked, [=](){SendMSG(CMD_ARRAY , Getting);}); //doesn't work with "Action"  //this, &CentralWidget::GetArrayActArray);
-     connect(m_pbSetYPR, &QPushButton::clicked, [=](){SendMSG(CMD_YPR, Setting);}); //this, &CentralWidget::GetYPRSettArray);
-     connect(m_pbSetAGC, &QPushButton::clicked, [=](){SendMSG(CMD_AGC, Setting);}); //this, &CentralWidget::GetAGCSettArray);
-     connect(m_pbSetTransc, &QPushButton::clicked, [=](){SendMSG(CMD_TRANSC, Setting);}); //this, &CentralWidget::GetTRANSCSettArray);
-     connect(m_pbSetSndSpd, &QPushButton::clicked, [=](){SendMSG(CMD_SND_SPD, Setting);}); //this, &CentralWidget::GetSPDSettArray);
+    connect(m_pbUpdateSettChar, &QPushButton::clicked, this, &CentralWidget::sendActionChartData);
+    connect(m_pbSetArr, &QPushButton::clicked, this, &CentralWidget::sendActionArray);
+    connect(m_pbSetYPR, &QPushButton::clicked, this, &CentralWidget::sendYPRData);
+    connect(m_pbSetAGC, &QPushButton::clicked, this, &CentralWidget::sendAGCData);
+    connect(m_pbSetTransc, &QPushButton::clicked, this, &CentralWidget::sendTranscData);
+    connect(m_pbSetSndSpd, &QPushButton::clicked, this, &CentralWidget::sendSpeedData);
 
-     connect(m_yPRTimer, &QTimer::timeout, this, &CentralWidget::getYRPTemp);
+    connect(m_yPRTimer, &QTimer::timeout, [=](){sendWithoutPayloudData(CMD_YPR, Getting);});
+
+    m_parse->setChartDataCallback(std::bind(&CentralWidget::setChartData, this, std::placeholders::_1));
+    m_parse->setYPRCallback(std::bind(&CentralWidget::setYPR, this, std::placeholders::_1));
+    m_parse->setTempCallback(std::bind(&CentralWidget::setTemp, this, std::placeholders::_1));
 }
 
-void CentralWidget::startTimer()
+void CentralWidget::sendYPRData()
 {
-    if (!m_yPRTimer->isActive())
+    std::vector<uint8T> r = m_parse->CreateYPRGettingPacket(m_sbAttachYPR->value());
+    sendData(r);
+}
+
+void CentralWidget::sendAGCData()
+{
+    std::vector<uint8T> r = m_parse->CreateAGCSettingPacket(m_sbStrPosAGC->value(), m_sbOffsetAGC->value(),
+                                                            m_sbSlopeAGC->value(), m_sbAbsorpAGC->value());
+    sendData(r);
+}
+
+void CentralWidget::sendTranscData()
+{
+    std::vector<uint8T> r = m_parse->CreateTRANSCSettingPacket(m_sbFreqtransc->value(), m_sbPulseTransc->value(),
+                                                               m_sbBoostTransc->value());
+    sendData(r);
+}
+
+void CentralWidget::sendSpeedData()
+{
+    std::vector<uint8T> r = m_parse->CreateSPDSettingPacket(m_sbSndSpd->value());
+    sendData(r);
+}
+
+void CentralWidget::sendActionChartData()
+{
+     std::vector<uint8T> r = m_parse->CreateChartActionPacket(m_sbStrtPosCh->value(), m_sbItemCount->value(),
+                                     m_sbItemResol->value(), m_sbPeriod->value());
+     sendData(r);
+}
+
+void CentralWidget::sendActionArray()
+{
+     std::vector<uint8T> r = m_parse->CreateArrayActionPacket(m_sbStrtPosArr->value(), m_sbEndPosArr->value(),
+                                     m_sbMaxCountArr->value(), m_sbThrRiseArr->value(),
+                                     m_sbThrFallArr->value(), m_sbOverlapArr->value(),
+                                     m_sbMinWidthArr->value(), m_sbMinAmplArr->value());
+     sendData(r);
+}
+
+void CentralWidget::sendWithoutPayloudData(uint8T id, uint8T mode)
+{
+    std::vector<uint8T> r = m_parse->CreateWithoutPayloadPacket(id, mode);
+    sendData(r);
+}
+
+void CentralWidget::sendData(std::vector<uint8T> &r)
+{
+    QByteArray arr;
+    for (int i = 0; i < r.size(); i++)
     {
-        m_yPRTimer->start();
+        arr[i] = r[i];
+    }
+    m_serialPort->write(arr);
+}
+
+void CentralWidget::setChartData(const ChartDataMode &r)
+{
+    for (int i = 0; i < r.distance.size(); i++)
+    {
+        m_realTimePlot->realtimeDataSlot(r.distance[i]);
     }
 }
 
-void CentralWidget::getYRPTemp()
+void CentralWidget::setYPR(const YPR &y)
 {
-    SendMSG(CMD_TEMP, Getting);
-    SendMSG(CMD_YPR, Getting);
+    m_teYaw->setText(QString("%1").arg(y.YAW));
+    m_tePitch->setText(QString("%1").arg(y.PITCH));
+    m_teRoll->setText(QString("%1").arg(y.ROLL));
 }
 
-void CentralWidget::setYPR(double &yaw, double &pitch, double &roll)
+void CentralWidget::setTemp(const Temp &t)
 {
-    m_teYaw->setText(QString("%1").arg(yaw));
-    m_tePitch->setText(QString("%1").arg(pitch));
-    m_teRoll->setText(QString("%1").arg(roll));
-}
-
-void CentralWidget::setTemp(double &tempIMU, double &tempCPU)
-{
-    m_teTemp->setText(QString("%1").arg(tempIMU));
+    m_teTemp->setText(QString("%1").arg(t.TEMPIMU));
 }
 
 void CentralWidget::onDisconnect()
@@ -80,8 +133,9 @@ void CentralWidget::onConnect()
     {
         m_connectB->setEnabled(false);
         m_textLable->setText("Connected");
+
+        sendWithoutPayloudData(CMD_YPR, Getting);
         startTimer();
-        getYRPTemp();
     }
     else {
         m_textLable->setText("Can't connect");
@@ -91,8 +145,7 @@ void CentralWidget::onConnect()
 
 void CentralWidget::parseData()
 {
-    QByteArray dataArray = m_serialPort->readAll();
-    m_parse->ParseData(dataArray);
+    m_parse->ParseData(m_serialPort->read(1)[0]);
 }
 
 void CentralWidget::SetPorts()
@@ -104,11 +157,11 @@ void CentralWidget::SetPorts()
     }
 }
 
-void CentralWidget::SendMSG(uint8T id, uint8T mode)
+void CentralWidget::startTimer()
 {
-    if (m_serialPort->write(GetArrayMSG(id, mode)) == -1)
+    if (!m_yPRTimer->isActive())
     {
-        m_textLable->setText(m_serialPort->errorString());
+        m_yPRTimer->start();
     }
 }
 
@@ -191,7 +244,7 @@ void CentralWidget::createDistWidget()
 {
 
     m_sbStrtPosCh = new QSpinBox(this);
-    m_sbStrtPosCh->setMinimum(0); //mm
+    m_sbStrtPosCh->setRange(0, 5000); //mm
     m_sbItemCount = new QSpinBox(this);
     m_sbItemCount->setRange(1, 5000);
     m_sbItemResol = new QSpinBox(this);
@@ -232,11 +285,11 @@ void CentralWidget::createArrayWidget()
     m_sbStrtPosArr = new QSpinBox(this);
     m_sbStrtPosArr->setRange(0, 1000); //mm
     m_sbEndPosArr = new QSpinBox(this);
-    m_sbEndPosArr->setMinimum(1000); //mm
+    m_sbEndPosArr->setRange(1000, 10000); //mm
     m_sbMaxCountArr = new QSpinBox(this);
     m_sbMaxCountArr->setRange(1, 200);
     m_sbThrRiseArr = new QSpinBox(this);
-    m_sbThrRiseArr->setMinimum(0);
+    m_sbThrRiseArr->setRange(0, 1000);
     m_sbThrFallArr = new QSpinBox(this);
     m_sbThrFallArr->setMinimum(0);
     m_sbOverlapArr = new QSpinBox(this);
@@ -411,336 +464,3 @@ void CentralWidget::createSPDWidget()
     SPDWidget->setLayout(vLayoutCh);
 }
 
-QByteArray CentralWidget::GetArrayMSG(uint8T &id, uint8T &mode)
-{
-    switch(id)
-    {
-    case CMD_CHART:
-        switch (mode)
-        {
-            case Getting:   //Get setting of Chart
-                return GetNoPayloadArray(id, mode);
-            case Action:    //Get chart with/without(?) update settings
-                return GetChartActArray(id, mode);
-        }
-    break;
-    //Get array
-    case CMD_ARRAY:
-        return GetArrayActArray(id, mode);
-    case CMD_YPR:
-        switch (mode)
-        {
-        //Request attitude information in Euler 321 format
-            case Getting:
-                switch (m_parse->GetVersion(mode))
-                {
-                case 0:
-                    return GetNoPayloadArray(id, mode);
-                case 1:
-                    return GetYPRGettArray(id, mode);
-                }
-            break;
-            case Setting:
-                return GetYPRSettArray(id, mode);
-        }
-        break;
-    case CMD_QUAT:
-        //Request attitude information in quaternion format
-        switch (mode)
-        {
-        case Getting:
-            return GetNoPayloadArray(id, mode);
-        }
-    break;
-    case CMD_TEMP:
-        switch (mode)
-        {
-        case Getting:
-            return GetNoPayloadArray(id, mode);
-        }
-    break;
-    case CMD_DIAG:
-        switch (mode)
-        {
-        case Getting:
-            return GetNoPayloadArray(id, mode);
-        }
-    break;
-    case CMD_AGC:
-        switch (mode)
-        {
-            case Getting:
-                return GetNoPayloadArray(id, mode);
-            case Setting:
-                return GetAGCSettArray(id, mode);
-        }
-    break;
-    case CMD_TRANSC:
-        switch (mode)
-        {
-            case Getting:
-            {
-                return GetNoPayloadArray(id, mode);
-            }
-            case Setting:
-                return GetTRANSCSettArray(id, mode);
-        }
-    break;
-    case CMD_SND_SPD:
-        switch (mode)
-        {
-            case Getting:
-                return GetNoPayloadArray(id, mode);
-            case Setting:
-                return GetSPDSettArray(id, mode);
-        }
-    break;
-    case CMD_UART:
-        switch (mode)
-        {
-            case Getting:
-            {
-                return GetUARTGettArray(id, mode);
-            }
-            case Setting:
-            {
-                return GetUARTSettArray(id, mode);
-            }
-        }
-    break;
-    case CMD_FLASH:
-        return GetFLASHActArray(id, mode);
-    case CMD_FORMAT:
-        return GetFORMATSettArray(id, mode);
-    case CMD_REBOOT:
-        return GetREBOOTActArray(id, mode);
-    case CMD_MARK:
-        switch (mode)
-        {
-            case Getting:
-            {
-                return GetNoPayloadArray(id, mode);
-            }
-            case Setting:
-            {
-                return GetMARKSettArray(id, mode);
-            }
-            case Content:
-            {
-                return GetMARKContArray(id, mode);
-            }
-        }
-    break;
-    case CMD_VERSION :
-        return GetNoPayloadArray(id, mode);
-    default: break;
-    }
-    return nullptr;
-}
-
-QByteArray CentralWidget::GetNoPayloadArray(uint8T &id, uint8T &mode)
-{
-    QByteArray arrayPayload;
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetChartActArray(uint8T &id, uint8T &mode)
-{
-    uint32_t STRT_POS = m_sbStrtPosCh->value();
-    uint16_t ITEM_COUNT = m_sbItemCount->value();
-    uint16_t ITEM_RESOL = m_sbItemResol->value();
-    uint16_t REPEAT_PERIOD = m_sbPeriod->value();
-    uint32_t RESERVED = 0;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&STRT_POS, sizeof(STRT_POS));
-    arrayPayload.append((const char*)&ITEM_COUNT, sizeof(ITEM_COUNT));
-    arrayPayload.append((const char*)&ITEM_RESOL, sizeof(ITEM_RESOL));
-    arrayPayload.append((const char*)&REPEAT_PERIOD, sizeof(REPEAT_PERIOD));
-    arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetArrayActArray(uint8T &id, uint8T &mode)
-{
-    uint32_t STRT_POS = m_sbStrtPosArr->value();
-    uint32_t END_POS = m_sbEndPosArr->value();
-    uint16_t MAX_COUNT = m_sbMaxCountArr->value();
-    uint16_t THR_RISE = m_sbThrRiseArr->value();
-    uint16_t THR_FALL = m_sbThrFallArr->value();
-    uint16_t OVERLAP = m_sbOverlapArr->value();
-    uint16_t MIN_WIDTH = m_sbMinWidthArr->value();
-    uint16_t MIN_AMPL = m_sbMinAmplArr->value();
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&STRT_POS, sizeof(STRT_POS));
-    arrayPayload.append((const char*)&END_POS, sizeof(END_POS));
-    arrayPayload.append((const char*)&MAX_COUNT, sizeof(MAX_COUNT));
-    arrayPayload.append((const char*)&THR_RISE, sizeof(THR_RISE));
-    arrayPayload.append((const char*)&THR_FALL, sizeof(THR_FALL));
-    arrayPayload.append((const char*)&OVERLAP, sizeof(OVERLAP));
-    arrayPayload.append((const char*)&MIN_WIDTH, sizeof(MIN_WIDTH));
-    arrayPayload.append((const char*)&MIN_AMPL, sizeof(MIN_AMPL));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetYPRGettArray(uint8T &id, uint8T &mode)
-{
-    uint8T ATTACH = m_sbAttachYPR->value();
-
-    QByteArray arrayPayload;
-    arrayPayload.append((const char*)&ATTACH, sizeof(ATTACH));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetYPRSettArray(uint8T &id, uint8T &mode)
-{
-    uint8T ATTACH  = m_sbAttachYPR->value();
-
-    QByteArray arrayPayload;
-    arrayPayload.append((const char*)&ATTACH, sizeof(ATTACH));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetAGCSettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t STRT_POS = m_sbStrPosAGC->value();
-    int16_t OFFSET = m_sbOffsetAGC->value();
-    uint16_t SLOPE = m_sbSlopeAGC->value();
-    uint16_t ABSORP = m_sbAbsorpAGC->value();
-    uint32_t RESERVED = 0;
-    uint32_t RESERVED2 = 0;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&STRT_POS, sizeof(STRT_POS));
-    arrayPayload.append((const char*)&OFFSET, sizeof(OFFSET));
-    arrayPayload.append((const char*)&SLOPE, sizeof(SLOPE));
-    arrayPayload.append((const char*)&ABSORP, sizeof(ABSORP));
-    arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
-    arrayPayload.append((const char*)&RESERVED2, sizeof(RESERVED2));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetTRANSCSettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t FREQ = m_sbFreqtransc->value();
-    uint8T PULSE = m_sbPulseTransc->value();
-    uint8T BOOST = m_sbBoostTransc->value();
-    uint32_t RESERVED = 0;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&FREQ, sizeof(FREQ));
-    arrayPayload.append((const char*)&PULSE, sizeof(PULSE));
-    arrayPayload.append((const char*)&BOOST, sizeof(BOOST));
-    arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetSPDSettArray(uint8T &id, uint8T &mode)
-{
-    uint16_t SOUND_SPEED = m_sbSndSpd->value();
-    uint32_t RESERVED = 0;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&SOUND_SPEED, sizeof(SOUND_SPEED));
-    arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-//is not using now
-QByteArray CentralWidget::GetUARTSettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t UART_KEY = 0xC96B5D4A;
-    uint8T UART_ID;
-    uint32_t BAUDRATE;
-    uint32_t RESERVED = 0;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&UART_KEY, sizeof(UART_KEY));
-    arrayPayload.append((const char*)&UART_ID, sizeof(UART_ID));
-    arrayPayload.append((const char*)&BAUDRATE, sizeof(BAUDRATE));
-    arrayPayload.append((const char*)&RESERVED, sizeof(RESERVED));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetUARTGettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t UART_KEY = 0xC96B5D4A;
-    uint8T UART_ID;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&UART_KEY, sizeof(UART_KEY));
-    arrayPayload.append((const char*)&UART_ID, sizeof(UART_ID));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetFLASHActArray(uint8T &id, uint8T &mode)
-{
-    uint32_t KEY = 0xC96B5D4A;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&KEY, sizeof(KEY));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetFORMATSettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t KEY = 0xC96B5D4A;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&KEY, sizeof(KEY));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetREBOOTActArray(uint8T &id, uint8T &mode)
-{
-    uint32_t KEY = 0xC96B5D4A;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&KEY, sizeof(KEY));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetMARKSettArray(uint8T &id, uint8T &mode)
-{
-    uint32_t KEY = 0xC96B5D4A;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&KEY, sizeof(KEY));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}
-
-QByteArray CentralWidget::GetMARKContArray(uint8T &id, uint8T &mode)
-{
-    uint32_t MARK;
-
-    QByteArray arrayPayload;
-
-    arrayPayload.append((const char*)&MARK, sizeof(MARK));
-
-    return  m_sendData->CreateArrayMSG(id, mode, arrayPayload);
-}

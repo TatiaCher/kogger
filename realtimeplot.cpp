@@ -38,18 +38,20 @@ void realTimePlot::plotSettings()
     connect(m_customPlot->yAxis, SIGNAL(rangeChanged(QCPRange)), m_customPlot->yAxis2, SLOT(setRange(QCPRange)));
 }
 
-void realTimePlot::realtimeDataSlot(double &value)
+void realTimePlot::realtimeDataSlot(const double &r)
 {
+
     double key = m_time.elapsed()/1000.0;
 
     if (key - m_lastPointKey > 0.02)
     {
-        m_customPlot->graph(0)->addData(key, value);
-        m_customPlot->graph(0)->rescaleValueAxis();
+         m_customPlot->graph(0)->addData(key, r);
+         m_customPlot->graph(0)->rescaleValueAxis();
 
         m_lastPointKey = key;
     }
 
     m_customPlot->xAxis->setRange(key, 8, Qt::AlignRight);
     m_customPlot->replot();
+
 }

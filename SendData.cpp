@@ -4,28 +4,28 @@
 SendData::SendData()
 {}
 
-QByteArray SendData::CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload)
+std::vector<char> SendData::CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload)
 {
     ZeroOutData();
 
-    QByteArray arrayMSG;
+    std::vector<char> arrayMSG;
 
-    arrayMSG.append(static_cast<char>(0xBB));
-    arrayMSG.append(static_cast<char>(0x55));
+    arrayMSG.push_back(static_cast<char>(0xBB));
+    arrayMSG.push_back(static_cast<char>(0x55));
 
     if (payload.size() == 0)
     {
-        arrayMSG.append(static_cast<char>(0));
+        arrayMSG.push_back(static_cast<char>(0));
         CheckSumUpdate(static_cast<uint8T>(0));
     }
     else
     {
-        arrayMSG.append(static_cast<char>(payload.size()));
+        arrayMSG.push_back(static_cast<char>(payload.size()));
         CheckSumUpdate(static_cast<uint8T>(payload.size()));
     }
 
-    arrayMSG.append(static_cast<char>(mode));
-    arrayMSG.append(static_cast<char>(id));
+    arrayMSG.push_back(static_cast<char>(mode));
+    arrayMSG.push_back(static_cast<char>(id));
 
     CheckSumUpdate(mode);
     CheckSumUpdate(id);
@@ -34,15 +34,13 @@ QByteArray SendData::CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payloa
     {
         for (int i = 0; i < payload.size(); i++)
         {
-            arrayMSG.append(payload[i]);
+            arrayMSG.push_back(payload[i]);
             CheckSumUpdate(static_cast<uint8T>(payload[i]));
         }
     }
 
-    arrayMSG.append(static_cast<char>(CHECK1));
-    arrayMSG.append(static_cast<char>(CHECK2));
-
-    ZeroOutData();
+    arrayMSG.push_back(static_cast<char>(CHECK1));
+    arrayMSG.push_back(static_cast<char>(CHECK2));
 
     return arrayMSG;
 }

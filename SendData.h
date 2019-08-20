@@ -2,13 +2,14 @@
 #define SENDDATA_H
 
 #include <QByteArray>
+#include <vector>
 
 class SendData
 {
 public:
     SendData();
 
-    QByteArray CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload);
+    std::vector<char> CreateArrayMSG(uint8T &id, uint8T &mode, QByteArray &payload);
 private:
     void CheckSumUpdate(uint8T byte);
     void ZeroOutData();

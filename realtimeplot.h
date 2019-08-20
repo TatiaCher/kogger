@@ -3,6 +3,7 @@
 
 #include <QWidget>
 
+//#include "Parse.h"
 #include "qcustomplot.h"
 
 class realTimePlot : public QWidget
@@ -22,7 +23,7 @@ private:
 signals:
 
 public:
-    void realtimeDataSlot(double &value);
+    void realtimeDataSlot(const double &r);
 };
 
 #endif // REALTIMEPLOT_H

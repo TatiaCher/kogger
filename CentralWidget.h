@@ -22,27 +22,21 @@ private:
     void CreateConnections();
     void CreateLayouts();
     void SetPorts();
-    void SendMSG(uint8T id, uint8T mode);
+
+    void setChartData(const ChartDataMode &r);
+    void sendWithoutPayloudData(uint8T id, uint8T mode);
+    void setYPR(const YPR &y);
+    void setTemp(const Temp &t);
 
     void startTimer();
 
-    QByteArray GetArrayMSG(uint8T &id, uint8T &mode);
-
-    QByteArray GetNoPayloadArray(uint8T &id, uint8T &mode);
-    QByteArray GetChartActArray(uint8T &id, uint8T &mode);
-    QByteArray GetArrayActArray(uint8T &id, uint8T &mode);
-    QByteArray GetYPRGettArray(uint8T &id, uint8T &mode);
-    QByteArray GetYPRSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetAGCSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetTRANSCSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetSPDSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetUARTSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetUARTGettArray(uint8T &id, uint8T &mode);
-    QByteArray GetFLASHActArray(uint8T &id, uint8T &mode);
-    QByteArray GetFORMATSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetREBOOTActArray(uint8T &id, uint8T &mode);
-    QByteArray GetMARKSettArray(uint8T &id, uint8T &mode);
-    QByteArray GetMARKContArray(uint8T &id, uint8T &mode);
+    void sendData(std::vector<uint8T> &r);
+    void sendActionChartData();
+    void sendActionArray();
+    void sendYPRData();
+    void sendAGCData();
+    void sendTranscData();
+    void sendSpeedData();
 
     QTimer *m_yPRTimer;
 
@@ -145,9 +139,6 @@ private slots:
     void onDisconnect();
     void onConnect();
     void parseData();
-    void getYRPTemp();
-    void setYPR(double &yaw, double &pitch, double &roll);
-    void setTemp(double &tempIMU, double &tempCPU);
 
 };
 
