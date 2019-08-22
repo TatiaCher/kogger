@@ -4,10 +4,10 @@
 
 CentralWidget::CentralWidget(QWidget *parent) :
     QWidget(parent),
-    m_yPRTimer(new QTimer(this)),
+    //m_yPRTimer(new QTimer(this)),
     m_serialPort(new QSerialPort(this)),
     m_realTimePlot(new realTimePlot(this)),
-    m_parse(new Parse),
+    m_parse(new KoogerParser),
     m_sendData(new SendData)
 {
     CreateInterface();
@@ -15,7 +15,7 @@ CentralWidget::CentralWidget(QWidget *parent) :
     CreateConnections();
     SetPorts();
 
-    m_yPRTimer->setInterval(1000);
+    //m_yPRTimer->setInterval(2000);
 }
 
 void CentralWidget::CreateConnections()
@@ -32,7 +32,7 @@ void CentralWidget::CreateConnections()
     connect(m_pbSetTransc, &QPushButton::clicked, this, &CentralWidget::sendTranscData);
     connect(m_pbSetSndSpd, &QPushButton::clicked, this, &CentralWidget::sendSpeedData);
 
-    connect(m_yPRTimer, &QTimer::timeout, [=](){sendWithoutPayloudData(CMD_YPR, Getting);});
+    //connect(m_yPRTimer, &QTimer::timeout, [=](){sendWithoutPayloudData(m_parse->CMD_YPR, m_parse->Getting);});
 
     m_parse->setChartDataCallback(std::bind(&CentralWidget::setChartData, this, std::placeholders::_1));
     m_parse->setYPRCallback(std::bind(&CentralWidget::setYPR, this, std::placeholders::_1));
@@ -97,7 +97,7 @@ void CentralWidget::sendData(std::vector<uint8T> &r)
     m_serialPort->write(arr);
 }
 
-void CentralWidget::setChartData(const ChartDataMode &r)
+void CentralWidget::setChartData(const KoogerParser::ChartDataMode &r)
 {
     for (int i = 0; i < r.distance.size(); i++)
     {
@@ -105,14 +105,14 @@ void CentralWidget::setChartData(const ChartDataMode &r)
     }
 }
 
-void CentralWidget::setYPR(const YPR &y)
+void CentralWidget::setYPR(const KoogerParser::YPR &y)
 {
     m_teYaw->setText(QString("%1").arg(y.YAW));
     m_tePitch->setText(QString("%1").arg(y.PITCH));
     m_teRoll->setText(QString("%1").arg(y.ROLL));
 }
 
-void CentralWidget::setTemp(const Temp &t)
+void CentralWidget::setTemp(const KoogerParser::Temp &t)
 {
     m_teTemp->setText(QString("%1").arg(t.TEMPIMU));
 }
@@ -120,7 +120,7 @@ void CentralWidget::setTemp(const Temp &t)
 void CentralWidget::onDisconnect()
 {
     m_serialPort->close();
-    m_yPRTimer->stop();
+    //m_yPRTimer->stop();
     m_textLable->setText("Disconnected");
     m_connectB->setEnabled(true);
 }
@@ -134,8 +134,8 @@ void CentralWidget::onConnect()
         m_connectB->setEnabled(false);
         m_textLable->setText("Connected");
 
-        sendWithoutPayloudData(CMD_YPR, Getting);
-        startTimer();
+        //sendWithoutPayloudData(m_parse->CMD_YPR, m_parse->Getting);
+        //startTimer();
     }
     else {
         m_textLable->setText("Can't connect");
@@ -145,7 +145,12 @@ void CentralWidget::onConnect()
 
 void CentralWidget::parseData()
 {
-    m_parse->ParseData(m_serialPort->read(1)[0]);
+    QByteArray arr = m_serialPort->readAll();
+    for (int i = 0; i < arr.size(); i++)
+    {
+         m_parse->ParseData(arr[i]);
+    }
+    arr.clear();
 }
 
 void CentralWidget::SetPorts()
@@ -159,10 +164,10 @@ void CentralWidget::SetPorts()
 
 void CentralWidget::startTimer()
 {
-    if (!m_yPRTimer->isActive())
+    /*if (!m_yPRTimer->isActive())
     {
         m_yPRTimer->start();
-    }
+    }*/
 }
 
 void CentralWidget::CreateInterface()

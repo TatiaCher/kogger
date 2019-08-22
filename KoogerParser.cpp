@@ -1,18 +1,18 @@
-#include "Parse.h"
+#include "KoogerParser.h"
 
-void Parse::CheckSumUpdate(uint8T byte)
+void KoogerParser::CheckSumUpdate(uint8T byte)
 {
     m_CHECK1 += byte;
     m_CHECK2 += m_CHECK1;
 }
 
-void Parse::ResetCheck()
+void KoogerParser::ResetCheck()
 {
     m_CHECK1 = 0;
     m_CHECK2 = 0;
 }
 
-void Parse::ResetData()
+void KoogerParser::ResetData()
 {
     m_payloadArray.clear();
     m_countByte = 0;
@@ -21,14 +21,14 @@ void Parse::ResetData()
     ResetCheck();
 }
 
-int Parse::GetVersion(uint8T &mode)
+int KoogerParser::GetVersion(uint8T &mode)
 {
     std::bitset<8> bits(mode);
 
     return bits[3] & bits[4] & bits[5];
 }
 
-uint8T Parse::ReadU1()
+uint8T KoogerParser::ReadU1()
 {
     uint8T byte = static_cast<uint8T>(m_payloadArray[m_payloadPos]);
     m_payloadPos++;
@@ -36,7 +36,7 @@ uint8T Parse::ReadU1()
     return byte;
 }
 
-uint16_t Parse::ReadU2()
+uint16_t KoogerParser::ReadU2()
 {
     uint8T byte1 = ReadU1();
     uint8T byte2 = ReadU1();
@@ -44,7 +44,7 @@ uint16_t Parse::ReadU2()
     return static_cast<uint16_t>((byte1) | (byte2 << 8));
 }
 
-uint32_t Parse::ReadU4()
+uint32_t KoogerParser::ReadU4()
 {
     uint8T byte1 = ReadU1();
     uint8T byte2 = ReadU1();
@@ -54,7 +54,7 @@ uint32_t Parse::ReadU4()
     return static_cast<uint32_t>((byte1) | (byte2 << 8) | (byte3 << 16) | (byte4 << 24));
 }
 
-int8_t Parse::ReadS1()
+int8_t KoogerParser::ReadS1()
 {
     int8_t byte = static_cast<int8_t>(m_payloadArray[m_payloadPos]);
     m_payloadPos++;
@@ -62,7 +62,7 @@ int8_t Parse::ReadS1()
     return byte;
 }
 
-int16_t Parse::ReadS2()
+int16_t KoogerParser::ReadS2()
 {
     int16_t byte1 = ReadS1();
     int16_t byte2 = ReadS1();
@@ -73,82 +73,82 @@ int16_t Parse::ReadS2()
 /*////////////////////////Parse data//////////////////////////
 ////////////////////////////////////////////////////////////*/
 
-void Parse::setRespCallback(std::function<void (const Resp &)> c)
+void KoogerParser::setRespCallback(std::function<void (const Resp &)> c)
 {
     respCallback = std::move(c);
 }
 
-void Parse::setChartDataCallback(std::function<void (const ChartDataMode &)> c)
+void KoogerParser::setChartDataCallback(std::function<void (const ChartDataMode &)> c)
 {
     chartDataCallback = std::move(c);
 }
 
-void Parse::setChartRqstCallback(std::function<void (const ChartRqstMode &)> c)
+void KoogerParser::setChartRqstCallback(std::function<void (const ChartRqstMode &)> c)
 {
     chartRqstCallback = std::move(c);
 }
 
-void Parse::setYPRCallback(std::function<void (const YPR &)> c)
+void KoogerParser::setYPRCallback(std::function<void (const YPR &)> c)
 {
    YPRCallback = std::move(c);
 }
 
-void Parse::setYPRattchCallback(std::function<void (const YPRattch &)> c)
+void KoogerParser::setYPRattchCallback(std::function<void (const YPRattch &)> c)
 {
     YPRattchCallback = std::move(c);
 }
 
-void Parse::setTempCallback(std::function<void (const Temp &)> c)
+void KoogerParser::setTempCallback(std::function<void (const Temp &)> c)
 {
     tempCallback = std::move(c);
 }
 
-void Parse::setArrayCallback(std::function<void (const Array &)> c)
+void KoogerParser::setArrayCallback(std::function<void (const Array &)> c)
 {
     arrayCallback = std::move(c);
 }
 
-void Parse::setQUATCallback(std::function<void (const QUAT &)> c)
+void KoogerParser::setQUATCallback(std::function<void (const QUAT &)> c)
 {
     quatCallback = std::move(c);
 }
 
-void Parse::setDiagCallback(std::function<void (const Diag &)> c)
+void KoogerParser::setDiagCallback(std::function<void (const Diag &)> c)
 {
     diagCallback = std::move(c);
 }
 
-void Parse::setAGCCallback(std::function<void (const AGC &)> c)
+void KoogerParser::setAGCCallback(std::function<void (const AGC &)> c)
 {
     agcCallback = std::move(c);
 }
 
-void Parse::setTranscCallback(std::function<void (const Transc &)> c)
+void KoogerParser::setTranscCallback(std::function<void (const Transc &)> c)
 {
     transcCallback = std::move(c);
 }
 
-void Parse::setSpeedCallback(std::function<void (const Speed &)> c)
+void KoogerParser::setSpeedCallback(std::function<void (const Speed &)> c)
 {
     speedCallback = std::move(c);
 }
 
-void Parse::setUARTCallback(std::function<void (const UART &)> c)
+void KoogerParser::setUARTCallback(std::function<void (const UART &)> c)
 {
     uartCallback = std::move(c);
 }
 
-void Parse::setMARKCallback(std::function<void (const MARK &)> c)
+void KoogerParser::setMARKCallback(std::function<void (const MARK &)> c)
 {
     markCallback = std::move(c);
 }
 
-void Parse::setVersionCallback(std::function<void (const Version &)> c)
+void KoogerParser::setVersionCallback(std::function<void (const Version &)> c)
 {
     versionCallback = std::move(c);
 }
 
-void Parse::ParseResp(Resp &resp)
+void KoogerParser::ParseResp(Resp &resp)
 {
     resp.code = ReadU1();
     resp.lenght = ReadU1();
@@ -158,7 +158,7 @@ void Parse::ParseResp(Resp &resp)
     resp.check2 = ReadU1();
 }
 
-void Parse::ParseChartDataMode(ChartDataMode &chartData)
+void KoogerParser::ParseChartDataMode(ChartDataMode &chartData)
 {
     chartData.strtPos = ReadU4();
     chartData.itemOffset = ReadU2();
@@ -170,7 +170,7 @@ void Parse::ParseChartDataMode(ChartDataMode &chartData)
     }
 }
 
-void Parse::ParseChartRqstMode(ChartRqstMode &chartRqst)
+void KoogerParser::ParseChartRqstMode(ChartRqstMode &chartRqst)
 {
     chartRqst.strtPos = ReadU4();
     chartRqst.itemCount = ReadU2();
@@ -180,7 +180,7 @@ void Parse::ParseChartRqstMode(ChartRqstMode &chartRqst)
     ReadU4(); // Reserved
 }
 
-void Parse::ParseYPR(YPR &ypr)
+void KoogerParser::ParseYPR(YPR &ypr)
 {
     int16_t YAW = ReadS2();
     int16_t PITCH = ReadS2();
@@ -191,12 +191,12 @@ void Parse::ParseYPR(YPR &ypr)
     ypr.ROLL = ROLL * 0.01;
 }
 
-void Parse::ParseYPRattach(YPRattch &yprAttach)
+void KoogerParser::ParseYPRattach(YPRattch &yprAttach)
 {
     yprAttach.ATTACH = ReadU1();
 }
 
-void Parse::ParseTemp(Temp &temp)
+void KoogerParser::ParseTemp(Temp &temp)
 {
     int16_t TEMPIMU = ReadS2();
     int16_t TEMPCPU = ReadS2();
@@ -206,7 +206,7 @@ void Parse::ParseTemp(Temp &temp)
     temp.TEMPCPU = TEMPCPU * 0.01;
 }
 
-void Parse::ParseArray(Array &array)
+void KoogerParser::ParseArray(Array &array)
 {
     array.pcktNbr = ReadU2();
     int countPckt = (m_length - 2)/8;
@@ -224,7 +224,7 @@ void Parse::ParseArray(Array &array)
     }
 }
 
-void Parse::ParseQUAT(QUAT &quat)
+void KoogerParser::ParseQUAT(QUAT &quat)
 {
     quat.W0 = ReadU4();
     quat.W1 = ReadU4();
@@ -232,7 +232,7 @@ void Parse::ParseQUAT(QUAT &quat)
     quat.W3 = ReadU4();
 }
 
-void Parse::ParseDiag(Diag &diag)
+void KoogerParser::ParseDiag(Diag &diag)
 {
     diag.UPTIME = ReadU4(); //ms
     int16_t TEMP_IMU = ReadS2();
@@ -255,7 +255,7 @@ void Parse::ParseDiag(Diag &diag)
     ReadU4(); //Reserved
 }
 
-void Parse::ParseAGC(AGC &agc)
+void KoogerParser::ParseAGC(AGC &agc)
 {
     agc.STRT_POS = ReadU4();   // mm
     agc.OFFSET = ReadS2();  // dB/100
@@ -266,7 +266,7 @@ void Parse::ParseAGC(AGC &agc)
     ReadU4(); //Reserved
 }
 
-void Parse::ParseTransc(Transc &transc)
+void KoogerParser::ParseTransc(Transc &transc)
 {
     transc.FREQ = ReadU2(); //kHz
     transc.PULSE = ReadU1();
@@ -275,14 +275,14 @@ void Parse::ParseTransc(Transc &transc)
     transc.reserved =  ReadU4();
 }
 
-void Parse::ParseSpeed(Speed &speed)
+void KoogerParser::ParseSpeed(Speed &speed)
 {
     speed.sndSpeed = ReadU2(); // m/s
 
     speed.reserved = ReadU4();
 }
 
-void Parse::ParseUART(UART &uart)
+void KoogerParser::ParseUART(UART &uart)
 {
     uart.UART_KEY = ReadU4();
     uart.UART_ID = ReadU1();
@@ -291,12 +291,12 @@ void Parse::ParseUART(UART &uart)
     ReadU4(); //Reserved
 }
 
-void Parse::ParseMark(MARK &mark)
+void KoogerParser::ParseMark(MARK &mark)
 {
     mark.MARK = ReadU1();
 }
 
-void Parse::ParseVersion(Version &version)
+void KoogerParser::ParseVersion(Version &version)
 {
     version.SW_MAJOR = ReadU1();
     version.SW_MINOR = ReadU1();
@@ -315,7 +315,7 @@ void Parse::ParseVersion(Version &version)
     version.DATE_D = ReadU1();
 }
 
-void Parse::GetPayload(uint8T &id, uint8T &mode)
+void KoogerParser::GetPayload(uint8T &id, uint8T &mode)
 {
     switch (id)
     {
@@ -436,7 +436,7 @@ void Parse::GetPayload(uint8T &id, uint8T &mode)
     }
 }
 
-void Parse::ParseData(char byte)
+void KoogerParser::ParseData(char byte)
 {
     switch (m_frameStatus)
     {
@@ -505,7 +505,7 @@ void Parse::ParseData(char byte)
 ////////////////////////////////////////////////////////////*/
 
 
-std::vector<uint8T> Parse::ParseUint32ToBytes(uint32_t &b)
+std::vector<uint8T> KoogerParser::ParseUint32ToBytes(uint32_t &b)
 {
     std::vector<uint8T> bytes;
     for (int i = 0; i < 4; i++)
@@ -515,7 +515,7 @@ std::vector<uint8T> Parse::ParseUint32ToBytes(uint32_t &b)
     return bytes;
 }
 
-std::vector<uint8T> Parse::ParseUint16ToBytes(uint16_t &b)
+std::vector<uint8T> KoogerParser::ParseUint16ToBytes(uint16_t &b)
 {
     std::vector<uint8T> bytes;
     for (int i = 0; i < 3; i++)
@@ -525,14 +525,14 @@ std::vector<uint8T> Parse::ParseUint16ToBytes(uint16_t &b)
     return bytes;
 }
 
-std::vector<uint8T> Parse::CreateWithoutPayloadPacket(uint8T id, uint8T mode)
+std::vector<uint8T> KoogerParser::CreateWithoutPayloadPacket(uint8T id, uint8T mode)
 {
     std::vector<uint8T> payload;
     return  CreatePacket(id, mode, payload);
 }
 
 //Get chart with/without(?) update settings
-std::vector<uint8T> Parse::CreateChartActionPacket(uint32_t STRT_POS, uint16_t ITEM_COUNT, uint16_t ITEM_RESOL,
+std::vector<uint8T> KoogerParser::CreateChartActionPacket(uint32_t STRT_POS, uint16_t ITEM_COUNT, uint16_t ITEM_RESOL,
                                             uint16_t REPEAT_PERIOD)
 {
     uint8T id = CMD_CHART;
@@ -560,7 +560,7 @@ std::vector<uint8T> Parse::CreateChartActionPacket(uint32_t STRT_POS, uint16_t I
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateArrayActionPacket(uint32_t STRT_POS, uint32_t END_POS, uint16_t MAX_COUNT,uint16_t THR_RISE,
+std::vector<uint8T> KoogerParser::CreateArrayActionPacket(uint32_t STRT_POS, uint32_t END_POS, uint16_t MAX_COUNT,uint16_t THR_RISE,
      uint16_t THR_FALL, uint16_t OVERLAP,uint16_t MIN_WIDTH, uint16_t MIN_AMPL)
 {
     uint8T id = CMD_ARRAY;
@@ -595,7 +595,7 @@ std::vector<uint8T> Parse::CreateArrayActionPacket(uint32_t STRT_POS, uint32_t E
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateYPRGettingPacket(uint8T ATTACH) //v1
+std::vector<uint8T> KoogerParser::CreateYPRGettingPacket(uint8T ATTACH) //v1
 {
     uint8T id = CMD_YPR;
     uint8T mode = Getting;
@@ -607,7 +607,7 @@ std::vector<uint8T> Parse::CreateYPRGettingPacket(uint8T ATTACH) //v1
     return CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateYPRSettingPacket(uint8T ATTACH) //v1
+std::vector<uint8T> KoogerParser::CreateYPRSettingPacket(uint8T ATTACH) //v1
 {
     uint8T id = CMD_YPR;
     uint8T mode = Setting;
@@ -619,7 +619,7 @@ std::vector<uint8T> Parse::CreateYPRSettingPacket(uint8T ATTACH) //v1
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateAGCSettingPacket(uint32_t STRT_POS, int16_t OFFSET, uint16_t SLOPE, uint16_t ABSORP)
+std::vector<uint8T> KoogerParser::CreateAGCSettingPacket(uint32_t STRT_POS, int16_t OFFSET, uint16_t SLOPE, uint16_t ABSORP)
 {
     uint8T id = CMD_AGC;
     uint8T mode = Setting;
@@ -632,11 +632,11 @@ std::vector<uint8T> Parse::CreateAGCSettingPacket(uint32_t STRT_POS, int16_t OFF
     std::vector<uint8T> variable = ParseUint32ToBytes(STRT_POS);
     payload.insert(payload.end(), variable.begin(), variable.end());
 
-                        //Parse offset
-    payload.push_back(  OFFSET & 0xFF);
-    payload.push_back( (OFFSET >> 8) & 0xFF);
-    payload.push_back( (OFFSET >> 16) & 0xFF);
-    payload.push_back( (OFFSET >> 24) & 0xFF);
+                      //Parse offset
+    payload.push_back(OFFSET & 0xFF);
+    payload.push_back((OFFSET >> 8) & 0xFF);
+    payload.push_back((OFFSET >> 16) & 0xFF);
+    payload.push_back((OFFSET >> 24) & 0xFF);
 
     variable = ParseUint16ToBytes(SLOPE);
     payload.insert(payload.end(), variable.begin(), variable.end());
@@ -653,7 +653,7 @@ std::vector<uint8T> Parse::CreateAGCSettingPacket(uint32_t STRT_POS, int16_t OFF
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateTRANSCSettingPacket(uint32_t FREQ, uint8T PULSE, uint8T BOOST)
+std::vector<uint8T> KoogerParser::CreateTRANSCSettingPacket(uint32_t FREQ, uint8T PULSE, uint8T BOOST)
 {
     uint8T id = CMD_TRANSC;
     uint8T mode = Setting;
@@ -674,7 +674,7 @@ std::vector<uint8T> Parse::CreateTRANSCSettingPacket(uint32_t FREQ, uint8T PULSE
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateSPDSettingPacket(uint16_t SOUND_SPEED)
+std::vector<uint8T> KoogerParser::CreateSPDSettingPacket(uint16_t SOUND_SPEED)
 {
     uint8T id = CMD_SND_SPD;
     uint8T mode = Setting;
@@ -692,7 +692,7 @@ std::vector<uint8T> Parse::CreateSPDSettingPacket(uint16_t SOUND_SPEED)
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateUARTSettingPacket(uint8T UART_ID, uint32_t BAUDRATE)
+std::vector<uint8T> KoogerParser::CreateUARTSettingPacket(uint8T UART_ID, uint32_t BAUDRATE)
 {
     uint8T id = CMD_UART;
     uint8T mode = Setting;
@@ -716,7 +716,7 @@ std::vector<uint8T> Parse::CreateUARTSettingPacket(uint8T UART_ID, uint32_t BAUD
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateUARTGettingPacket(uint8T UART_ID)
+std::vector<uint8T> KoogerParser::CreateUARTGettingPacket(uint8T UART_ID)
 {
     uint8T id = CMD_UART;
     uint8T mode = Getting;
@@ -729,7 +729,7 @@ std::vector<uint8T> Parse::CreateUARTGettingPacket(uint8T UART_ID)
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateFlashActionPacket()
+std::vector<uint8T> KoogerParser::CreateFlashActionPacket()
 {
     uint8T id = CMD_FLASH;
     uint8T mode = Action;
@@ -741,7 +741,7 @@ std::vector<uint8T> Parse::CreateFlashActionPacket()
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateFormatSettingPacket()
+std::vector<uint8T> KoogerParser::CreateFormatSettingPacket()
 {
     uint8T id = CMD_FORMAT;
     uint8T mode = Action;
@@ -753,7 +753,7 @@ std::vector<uint8T> Parse::CreateFormatSettingPacket()
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateRebootActionPacket()
+std::vector<uint8T> KoogerParser::CreateRebootActionPacket()
 {
     uint8T id = CMD_REBOOT;
     uint8T mode = Action;
@@ -765,7 +765,7 @@ std::vector<uint8T> Parse::CreateRebootActionPacket()
     return CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreateMarkSettingPacket()
+std::vector<uint8T> KoogerParser::CreateMarkSettingPacket()
 {
     uint8T id = CMD_MARK;
     uint8T mode = Setting;
@@ -777,7 +777,7 @@ std::vector<uint8T> Parse::CreateMarkSettingPacket()
     return  CreatePacket(id, mode, payload);
 }
 
-std::vector<uint8T> Parse::CreatePacket(uint8T &id, uint8T &mode, std::vector<uint8T> &payload)
+std::vector<uint8T> KoogerParser::CreatePacket(uint8T &id, uint8T &mode, std::vector<uint8T> &payload)
 {
     ResetCheck();
 

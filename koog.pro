@@ -26,7 +26,7 @@ CONFIG += c++11
 
 SOURCES += \
         CentralWidget.cpp \
-        Parse.cpp \
+        KoogerParser.cpp \
         SendData.cpp \
         main.cpp \
         mainwindow.cpp \
@@ -35,7 +35,7 @@ SOURCES += \
 
 HEADERS += \
         CentralWidget.h \
-        Parse.h \
+        KoogerParser.h \
         SendData.h \
         mainwindow.h \
         qcustomplot.h \

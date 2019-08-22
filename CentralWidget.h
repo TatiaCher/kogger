@@ -2,7 +2,7 @@
 #define MAINWIDGET_H
 
 #include "realtimeplot.h"
-#include "Parse.h"
+#include "KoogerParser.h"
 #include "SendData.h"
 
 #include <QWidget>
@@ -23,10 +23,10 @@ private:
     void CreateLayouts();
     void SetPorts();
 
-    void setChartData(const ChartDataMode &r);
+    void setChartData(const KoogerParser::ChartDataMode &r);
     void sendWithoutPayloudData(uint8T id, uint8T mode);
-    void setYPR(const YPR &y);
-    void setTemp(const Temp &t);
+    void setYPR(const KoogerParser::YPR &y);
+    void setTemp(const KoogerParser::Temp &t);
 
     void startTimer();
 
@@ -38,11 +38,11 @@ private:
     void sendTranscData();
     void sendSpeedData();
 
-    QTimer *m_yPRTimer;
+    //QTimer *m_yPRTimer;
 
     QSerialPort *m_serialPort;
     realTimePlot *m_realTimePlot;
-    Parse *m_parse;
+    KoogerParser *m_parse;
     SendData *m_sendData;
 
     QPushButton *m_connectB;
