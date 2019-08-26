@@ -7,8 +7,7 @@ CentralWidget::CentralWidget(QWidget *parent) :
     //m_yPRTimer(new QTimer(this)),
     m_serialPort(new QSerialPort(this)),
     m_realTimePlot(new realTimePlot(this)),
-    m_parse(new KoogerParser),
-    m_sendData(new SendData)
+    m_parse(new KoogerParser)
 {
     CreateInterface();
     CreateLayouts();

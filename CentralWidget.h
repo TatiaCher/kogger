@@ -3,7 +3,6 @@
 
 #include "realtimeplot.h"
 #include "KoogerParser.h"
-#include "SendData.h"
 
 #include <QWidget>
 #include <QSerialPort>
@@ -43,7 +42,6 @@ private:
     QSerialPort *m_serialPort;
     realTimePlot *m_realTimePlot;
     KoogerParser *m_parse;
-    SendData *m_sendData;
 
     QPushButton *m_connectB;
     QPushButton *m_disconnectB;
